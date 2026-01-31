@@ -1,0 +1,4 @@
+-r backend/requirements.txt
+
+# bot
+python-telegram-bot>=21.0,<22.0
