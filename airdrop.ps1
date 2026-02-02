@@ -42,14 +42,45 @@ function Stop-Server {
 }
 
 function Test-Server {
-    Write-Host "[*] Testing server..."
+    Write-Host "[*] Running system tests..."
+
+    $failed = $false
 
     try {
-        Invoke-RestMethod "$Server/health" -TimeoutSec 3 | Out-Null
-        Invoke-RestMethod "$Server/openapi.json" -TimeoutSec 3 | Out-Null
-        Write-Host "[OK] All checks passed"
+        $health = Invoke-RestMethod "$Server/health" -TimeoutSec 3
+        if ($health.status -ne "ok") {
+            Write-Host "[X] Health check failed"
+            $failed = $true
+        } else {
+            Write-Host "[OK] Health check passed"
+        }
     } catch {
-        Write-Host "[X] Test failed"
+        Write-Host "[X] Health endpoint unreachable"
+        $failed = $true
+    }
+
+    try {
+        $ready = Invoke-RestMethod "$Server/ready" -TimeoutSec 3
+        Write-Host "[OK] Ready endpoint reachable (db=$($ready.db), redis=$($ready.redis))"
+    } catch {
+        Write-Host "[X] Ready endpoint failed"
+        $failed = $true
+    }
+
+    try {
+        Invoke-RestMethod "$Server/openapi.json" -TimeoutSec 3 | Out-Null
+        Write-Host "[OK] OpenAPI available"
+    } catch {
+        Write-Host "[X] OpenAPI missing"
+        $failed = $true
+    }
+
+    if ($failed) {
+        Write-Host "[FAIL] System test failed"
+        exit 1
+    } else {
+        Write-Host "[PASS] All system tests passed"
+        exit 0
     }
 }
 
@@ -68,3 +99,4 @@ switch ($Action) {
     "test"   { Test-Server }
     "status" { Status-Server }
 }
+
