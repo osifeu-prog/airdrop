@@ -1,4 +1,5 @@
-﻿import time
+﻿from app.routes.health import router as health_router
+import time
 import logging
 import os
 from fastapi import FastAPI
@@ -64,33 +65,7 @@ def create_app() -> FastAPI:
             pass
         LOG.info("Shutdown complete.")
 
-    @app.get("/health", include_in_schema=False)
-    def health():
-        return {"status": "ok", "env": settings.ENVIRONMENT}
-
-    @app.get("/ready", include_in_schema=False)
-    def ready():
-        deadline = time.time() + 0.3
-        db_ok = False
-        redis_ok = False
-
-        if init_db.is_enabled():
-            try:
-                if time.time() < deadline:
-                    db_ok = bool(init_db.ping())
-            except Exception:
-                pass
-
-        try:
-            if time.time() < deadline:
-                redis_ok = bool(init_redis.ping())
-        except Exception:
-            pass
-
-        return {
-            "db": "up" if db_ok else "down",
-            "redis": "up" if redis_ok else "down",
-        }
+    
 
     @app.get("/public/progress", include_in_schema=False)
     def _public_progress_legacy_redirect():
@@ -103,3 +78,7 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+app.include_router(health_router)
+
+
+

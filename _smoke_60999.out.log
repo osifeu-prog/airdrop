@@ -1,0 +1,15 @@
+2026-01-25 00:17:30 | INFO | uvicorn.error | Started server process [13116]
+2026-01-25 00:17:30 | INFO | uvicorn.error | Waiting for application startup.
+2026-01-25 00:17:30 | INFO | app.db | DB configured.
+2026-01-25 00:17:30 | INFO | app.redis | Redis configured.
+2026-01-25 00:17:30 | INFO | app | Startup complete.
+2026-01-25 00:17:30 | INFO | uvicorn.error | Application startup complete.
+2026-01-25 00:17:30 | INFO | uvicorn.error | Uvicorn running on http://127.0.0.1:60999 (Press CTRL+C to quit)
+2026-01-25 00:17:30 | INFO | app.request | GET /health -> 200 (1ms)
+2026-01-25 00:17:30 | INFO | uvicorn.access | 127.0.0.1:61000 - "GET /health HTTP/1.1" 200
+2026-01-25 00:17:31 | INFO | app.request | GET /health -> 200 (1ms)
+2026-01-25 00:17:31 | INFO | uvicorn.access | 127.0.0.1:61004 - "GET /health HTTP/1.1" 200
+2026-01-25 00:17:31 | INFO | app.request | GET /ready -> 200 (12ms)
+2026-01-25 00:17:31 | INFO | uvicorn.access | 127.0.0.1:61005 - "GET /ready HTTP/1.1" 200
+2026-01-25 00:17:32 | INFO | app.request | GET /api/v1/admin/whoami -> 200 (0ms)
+2026-01-25 00:17:32 | INFO | uvicorn.access | 127.0.0.1:61007 - "GET /api/v1/admin/whoami HTTP/1.1" 200
