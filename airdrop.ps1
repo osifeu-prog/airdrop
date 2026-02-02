@@ -1,29 +1,28 @@
 param(
     [Parameter(Mandatory=$true)]
-    [ValidateSet("start","stop","test","status")]
+    [ValidateSet("start","stop","status","test","doctor")]
     [string]$Action
 )
 
 $Server = "http://127.0.0.1:8000"
 $PidFile = ".airdrop.pid"
+$LogDir = "logs"
+if (!(Test-Path $LogDir)) { New-Item -ItemType Directory -Force -Name $LogDir }
 
 function Start-Server {
     if (Test-Path $PidFile) {
-        Write-Host "[!] Server already running"
+        Write-Host "[!] Server already running (PID exists)"
         return
     }
 
     Write-Host "[*] Starting Airdrop server..."
-
     $env:PYTHONPATH = "$PWD\backend"
 
     $proc = Start-Process python `
-        "-m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info > logs\\server.log 2>&1" `
-        -PassThru `
-        -WindowStyle Hidden
+        "-m uvicorn app.main:app --host 127.0.0.1 --port 8000 --log-level info > logs\server.log 2>&1" `
+        -PassThru -WindowStyle Hidden
 
     $proc.Id | Out-File $PidFile -Encoding ASCII
-
     Start-Sleep 3
     Write-Host "[OK] Server started (PID $($proc.Id))"
 }
@@ -35,15 +34,31 @@ function Stop-Server {
     }
 
     $serverPid = Get-Content $PidFile
-    Stop-Process -Id $serverPid -Force
-    Remove-Item $PidFile
+    if (Get-Process -Id $serverPid -ErrorAction SilentlyContinue) {
+        Stop-Process -Id $serverPid -Force
+        Write-Host "[OK] Server stopped (PID $serverPid)"
+    } else {
+        Write-Host "[!] PID file exists but process not running"
+    }
 
-    Write-Host "[OK] Server stopped (PID $serverPid)"
+    Remove-Item $PidFile -Force
+}
+
+function Status-Server {
+    if (Test-Path $PidFile) {
+        $serverPid = Get-Content $PidFile
+        if (Get-Process -Id $serverPid -ErrorAction SilentlyContinue) {
+            Write-Host "[OK] Server running (PID $serverPid)"
+        } else {
+            Write-Host "[!] PID file exists but process not running"
+        }
+    } else {
+        Write-Host "[!] Server stopped"
+    }
 }
 
 function Test-Server {
     Write-Host "[*] Running system tests..."
-
     $failed = $false
 
     try {
@@ -84,19 +99,27 @@ function Test-Server {
     }
 }
 
-function Status-Server {
-    if (Test-Path $PidFile) {
-        $serverPid = Get-Content $PidFile
-        Write-Host "[OK] Server running (PID $serverPid)"
+function Doctor-Server {
+    Write-Host "[*] Running environment diagnostics..."
+    $issues = @()
+
+    if (-not (Get-Command python -ErrorAction SilentlyContinue)) { $issues += "Python not found" }
+    if (-not (Get-Command uvicorn -ErrorAction SilentlyContinue)) { $issues += "Uvicorn not installed" }
+    if (-not (Test-Path $LogDir)) { $issues += "Logs directory missing" }
+    if (!(Test-Path $PidFile)) { Write-Host "[*] PID file not present (ok)"} else { Write-Host "[*] PID file exists" }
+
+    if ($issues.Count -eq 0) {
+        Write-Host "[OK] Environment looks good"
     } else {
-        Write-Host "[!] Server stopped"
+        Write-Host "[X] Issues detected:"
+        $issues | ForEach-Object { Write-Host "  - $_" }
     }
 }
 
 switch ($Action) {
-    "start"  { Start-Server }
-    "stop"   { Stop-Server }
-    "test"   { Test-Server }
+    "start" { Start-Server }
+    "stop" { Stop-Server }
     "status" { Status-Server }
+    "test" { Test-Server }
+    "doctor" { Doctor-Server }
 }
-

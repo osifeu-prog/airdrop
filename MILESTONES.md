@@ -1,26 +1,23 @@
 ﻿# Project Milestones
 
-## v0.1.0 – Stable Local Baseline (LOCKED)
+## v0.2.0 - Test & Doctor Upgrade
 
-### What works
-- FastAPI app boots safely
-- No hard dependency on DB / Redis
-- /health endpoint available
-- /ready endpoint available
-- OpenAPI schema accessible
+### New Features
+- irdrop.ps1 test runs full system check:
+  - Health endpoint
+  - Ready endpoint (DB/Redis status)
+  - OpenAPI availability
+- irdrop.ps1 doctor checks local environment:
+  - Python & Uvicorn
+  - Logs folder
+  - PID file sanity
 
 ### Operations
-- airdrop.ps1 controls lifecycle:
-  - start
-  - stop (PID-safe)
-  - status
-  - test (basic)
-
-### Guarantees
-- Server can be started/stopped repeatedly
-- Health checks pass locally
-- Failures do not crash startup
+- Start/Stop/Status now fully compatible with test/doctor
+- System tests pass even if DB/Redis disabled
+- Failures handled gracefully
 
 ### Status
-✅ Baseline locked  
-🚀 Ready for test command upgrade
+- ✅ Server controllable via PowerShell
+- ✅ Test command functional
+- ✅ Doctor command functional
