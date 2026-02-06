@@ -4,7 +4,7 @@ from typing import Optional, Dict
 import os
 import hashlib
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = FastAPI(
     title="🚀 Airdrop TON API",
@@ -136,3 +136,4 @@ def verify_payment(transaction_id: str, admin_key: str):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
