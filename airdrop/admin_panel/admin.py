@@ -1,1 +1,0 @@
-print('Admin Panel core')

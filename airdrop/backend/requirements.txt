@@ -1,5 +1,0 @@
-﻿python-telegram-bot==20.8
-httpx>=0.26.0,<0.27.0
-python-dotenv==1.0.1
-pydantic==2.6.1
-pydantic-settings==2.1.0

@@ -1,1 +1,0 @@
-print('DB migration script')
