@@ -1,0 +1,68 @@
+﻿# backend/app/db/session.py
+import os
+import logging
+
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.db.base import Base
+
+LOG = logging.getLogger("app.db")
+
+
+class _InitDB:
+    def __init__(self):
+        self._engine = None
+        self._SessionLocal = None
+        self._enabled = False
+
+        db_url = os.getenv("DATABASE_URL", "").strip()
+        if not db_url:
+            LOG.warning("DATABASE_URL is empty -> DB disabled.")
+            return
+
+        try:
+            self._engine = create_engine(db_url, pool_pre_ping=True)
+            self._SessionLocal = sessionmaker(
+                autocommit=False,
+                autoflush=False,
+                bind=self._engine,
+            )
+            self._enabled = True
+            LOG.info("DB engine created.")
+        except Exception:
+            LOG.exception("Failed to create DB engine. DB disabled.")
+            self._enabled = False
+            self._engine = None
+            self._SessionLocal = None
+
+    def is_enabled(self) -> bool:
+        return self._enabled
+
+    def get_engine(self):
+        return self._engine
+
+    def get_session(self):
+        if not self._enabled or not self._SessionLocal:
+            raise RuntimeError("DB is disabled")
+        return self._SessionLocal()
+
+    def ensure_bootstrap(self):
+        if not self._enabled or not self._engine:
+            LOG.warning("DB bootstrap skipped (DB disabled).")
+            return
+        try:
+            Base.metadata.create_all(bind=self._engine)
+        except Exception:
+            LOG.exception("Bootstrap create_all failed (ignored).")
+
+    def close(self):
+        try:
+            if self._engine:
+                self._engine.dispose()
+                LOG.info("DB engine disposed.")
+        except Exception:
+            pass
+
+
+init_db = _InitDB()

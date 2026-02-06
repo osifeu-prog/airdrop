@@ -1,0 +1,16 @@
+<<<<<<< HEAD
+-r backend/requirements.txt
+
+# bot
+python-telegram-bot>=21.0,<22.0
+=======
+﻿python-telegram-bot==20.7
+fastapi==0.109.0
+uvicorn==0.27.0
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+python-dotenv==1.0.0
+httpx==0.25.2
+Pillow==10.2.0
+alembic==1.13.1
+>>>>>>> 03e5c1437b28768ba89ff31f6cea0fc62306fdf0
