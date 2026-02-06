@@ -1,4 +1,4 @@
-﻿import os
+import os
 import psycopg2
 
 SQL_PATH = "tools/enable_airdrop.sql"

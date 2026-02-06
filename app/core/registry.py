@@ -1,4 +1,4 @@
-﻿# backend/app/core/registry.py
+# backend/app/core/registry.py
 
 SYSTEM_REGISTRY = {
     "invites": {},

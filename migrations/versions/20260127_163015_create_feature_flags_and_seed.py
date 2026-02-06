@@ -1,4 +1,4 @@
-﻿"""create feature_flags and seed AIRDROP_ENABLED
+"""create feature_flags and seed AIRDROP_ENABLED
 
 Revision ID: 20260127163015
 Revises:

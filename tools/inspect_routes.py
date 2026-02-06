@@ -1,4 +1,4 @@
-﻿from app.main import app
+from app.main import app
 
 def show(path: str):
     hits = []

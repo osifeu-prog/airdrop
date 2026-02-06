@@ -1,4 +1,4 @@
-﻿# backend/app/db/session.py
+# backend/app/db/session.py
 import os
 import logging
 

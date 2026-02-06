@@ -1,4 +1,4 @@
-﻿# backend/app/core/invites.py
+# backend/app/core/invites.py
 
 import uuid
 from datetime import datetime

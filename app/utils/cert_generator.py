@@ -1,4 +1,4 @@
-﻿from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont
 import os
 
 def generate_certificate(name, user_id):

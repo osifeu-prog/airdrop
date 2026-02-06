@@ -1,4 +1,4 @@
-﻿# backend/app/api/v1/public.py
+# backend/app/api/v1/public.py
 
 from fastapi import APIRouter, HTTPException
 from backend.app.core.invites import create_invite, use_invite
