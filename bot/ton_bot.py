@@ -47,24 +47,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             active_users.add(user.id)
             logger.info(f"✅ User registered: {user.id}")
             
-            welcome = f"""🎉 **ברוך הבא {user.first_name}!**
+                        welcome = f"""🎉 ברוך הבא {user.first_name}!
 
-🤖 *בוט ה-Airdrop של TON מוכן לשירותך!*
+🤖 בוט ה-Airdrop של TON מוכן לשירותך!
 
-💰 **מחיר Airdrop:** 44.4 ₪ (ב-TON)
-🎯 **כמות טוקנים:** 1000 למשתמש
+💰 מחיר Airdrop: 44.4 ₪ (ב-TON)
+🎯 כמות טוקנים: 1000 למשתמש
 
-📋 **פקודות זמינות:**
+📋 פקודות זמינות:
 /airdrop - בקשת airdrop חדשה
 /status - מצב משתמש
 /help - עזרה והסברים
 
-💼 **ארנק לתשלום:**
-`{TON_WALLET}`
+💼 ארנק לתשלום:
+{TON_WALLET}
 
-⚡ **המערכת פעילה ומוכנה!**"""
+⚡ המערכת פעילה ומוכנה!"""
             
-            await update.message.reply_text(welcome, parse_mode="Markdown")
+            await update.message.reply_text(welcome)
             
         else:
             await update.message.reply_text("⚠️ בעיה בשרת. נסה שוב בעוד דקה.")
@@ -252,4 +252,6 @@ def main():
 if __name__ == "__main__":
     import json
     main()
+
+
 
