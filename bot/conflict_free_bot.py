@@ -1,5 +1,5 @@
 ﻿#!/usr/bin/env python3
-# Telegram Bot for Airdrop - FIXED VERSION
+# Telegram Bot for Airdrop - CONFLICT FREE VERSION
 import os
 import logging
 import requests
@@ -112,7 +112,7 @@ async def balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
             balance_text = f"""📊 **יתרה נוכחית**
 
 👤 משתמש: {user.first_name}
-💰 טוקנים: {data.get('balance_tokens', 0)} 
+💰 טוקנים: {data.get('balance_tokens', 0)}
 💎 TON: {data.get('balance_ton', 0)}
 🎯 airdrops שהושלמו: {data.get('completed_airdrops', 0)}
 ⏳ ממתינים: {data.get('pending_airdrops', 0)}"""
@@ -148,14 +148,13 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def main():
     """Start the bot"""
     # Clear any existing webhook to prevent conflicts
-    import requests
     try:
         requests.get(f"https://api.telegram.org/bot{TOKEN}/deleteWebhook")
         print("✅ Cleared any existing webhooks")
     except:
         pass
     
-    print(f"🚀 Starting Airdrop Bot v3.0...")
+    print(f"🚀 Starting Airdrop Bot v3.1...")
     print(f"🌐 API URL: {API_URL}")
     print(f"🤖 Bot Token: {TOKEN[:10]}...")
     
@@ -173,4 +172,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

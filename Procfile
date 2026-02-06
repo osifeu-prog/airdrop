@@ -1,2 +1,2 @@
 ﻿web: python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
-bot: python bot/fixed_bot.py
+bot: python bot/conflict_free_bot.py
