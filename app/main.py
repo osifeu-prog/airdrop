@@ -1,184 +1,138 @@
 ﻿from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict
 import os
 import hashlib
 import time
 from datetime import datetime
 
 app = FastAPI(
-    title="Airdrop API - Complete Version",
-    description="Complete API for cryptocurrency airdrops with TON payments",
-    version="3.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    title="🚀 Airdrop TON API",
+    version="2.0",
+    description="API יציב למבצע Airdrop עם Telegram"
 )
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# בסיס נתונים פשוט בזכרון
+users_db = {}
+airdrops_db = {}
+stats = {
+    "total_users": 0,
+    "total_airdrops": 0,
+    "pending_payments": 0,
+    "completed_payments": 0,
+    "total_volume_ton": 0
+}
 
-# ===== MODELS =====
 class UserRegister(BaseModel):
     telegram_id: int
     username: Optional[str] = None
     first_name: Optional[str] = None
-    last_name: Optional[str] = None
 
 class AirdropRequest(BaseModel):
     user_id: int
-    amount: float = 1.0
 
-# ===== HEALTH CHECK =====
-@app.get("/health")
-async def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-# ===== ROOT ENDPOINT =====
+# ============ PUBLIC ENDPOINTS ============
 @app.get("/")
-async def root():
-    """Root endpoint with API information"""
-    ton_wallet = os.getenv("TON_WALLET_ADDRESS", "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp")
-    price = os.getenv("AIRDROP_PRICE_ILS", "44.4")
-    
+def root():
     return {
-        "message": "🚀 Airdrop API v3.0 is fully operational!",
-        "version": "3.0.0",
+        "message": "🚀 Airdrop TON System is LIVE!",
         "status": "operational",
-        "ton_wallet": ton_wallet,
-        "airdrop_price": f"{price} ₪",
-        "endpoints": {
-            "docs": "/docs",
-            "health": "/health",
-            "register_user": "/api/v1/users/register (POST)",
-            "request_airdrop": "/api/v1/airdrop/request (POST)",
-            "user_balance": "/api/v1/users/{id}/balance (GET)",
-            "verify_transaction": "/api/v1/transactions/{id}/verify (GET)",
-            "telegram_webhook": "/api/v1/webhook/telegram (POST)"
-        },
-        "timestamp": datetime.now().isoformat()
+        "wallet": os.getenv("TON_WALLET", "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"),
+        "price": "44.4 ₪",
+        "stats": stats
     }
 
-# ===== USER REGISTRATION =====
-@app.post("/api/v1/users/register")
-async def register_user(user: UserRegister):
-    """Register a new user"""
-    print(f"📝 Registering user: {user.telegram_id} - {user.username}")
+@app.get("/health")
+def health():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/register")
+def register_user(data: UserRegister):
+    user_id = data.telegram_id
+    
+    if user_id not in users_db:
+        users_db[user_id] = {
+            "id": user_id,
+            "username": data.username,
+            "first_name": data.first_name,
+            "balance": 1000,
+            "joined": datetime.now().isoformat(),
+            "airdrops": []
+        }
+        stats["total_users"] += 1
+    
+    return {"status": "success", "user_id": user_id, "balance": 1000}
+
+@app.post("/api/airdrop")
+def create_airdrop(data: AirdropRequest):
+    user_id = data.user_id
+    price = 44.4
+    wallet = os.getenv("TON_WALLET", "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp")
+    
+    # צור מזהה ייחודי
+    transaction_id = hashlib.md5(f"{user_id}_{int(time.time())}".encode()).hexdigest()[:10]
+    
+    airdrop_data = {
+        "id": transaction_id,
+        "user_id": user_id,
+        "price": price,
+        "wallet": wallet,
+        "status": "pending",
+        "created": datetime.now().isoformat(),
+        "expires": (datetime.now() + timedelta(hours=1)).isoformat(),
+        "payment_url": f"ton://transfer/{wallet}?amount={price}&text=Airdrop-{transaction_id}",
+        "qr_code": f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=ton://transfer/{wallet}?amount={price}&text=Airdrop-{transaction_id}"
+    }
+    
+    airdrops_db[transaction_id] = airdrop_data
+    stats["total_airdrops"] += 1
+    stats["pending_payments"] += 1
     
     return {
         "status": "success",
-        "message": "User registered successfully",
-        "user_id": user.telegram_id,
-        "username": user.username,
-        "first_name": user.first_name,
+        "airdrop": airdrop_data
+    }
+
+@app.get("/api/user/{user_id}")
+def get_user(user_id: int):
+    if user_id in users_db:
+        user_data = users_db[user_id].copy()
+        user_data["airdrops"] = [a for a in airdrops_db.values() if a["user_id"] == user_id]
+        return user_data
+    return {"status": "user_not_found"}
+
+# ============ ADMIN ENDPOINTS ============
+@app.get("/admin/stats")
+def admin_stats(admin_key: str):
+    if admin_key != os.getenv("ADMIN_KEY", "test123"):
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    return {
+        "platform": "TON Airdrop System",
+        "version": "2.0",
         "timestamp": datetime.now().isoformat(),
-        "airdrop_balance": 0,
-        "registered_at": time.time()
+        "statistics": stats,
+        "recent_users": list(users_db.values())[-10:] if users_db else [],
+        "recent_airdrops": list(airdrops_db.values())[-10:] if airdrops_db else []
     }
 
-# ===== AIRDROP REQUEST =====
-@app.post("/api/v1/airdrop/request")
-async def request_airdrop(request: AirdropRequest):
-    """Request a new airdrop"""
-    print(f"🎁 Airdrop request from user: {request.user_id}")
+@app.post("/admin/verify")
+def verify_payment(transaction_id: str, admin_key: str):
+    if admin_key != os.getenv("ADMIN_KEY", "test123"):
+        raise HTTPException(status_code=403, detail="Access denied")
     
-    price_ils = float(os.getenv("AIRDROP_PRICE_ILS", "44.4"))
-    wallet = os.getenv("TON_WALLET_ADDRESS", "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp")
+    if transaction_id in airdrops_db:
+        airdrops_db[transaction_id]["status"] = "completed"
+        airdrops_db[transaction_id]["verified_at"] = datetime.now().isoformat()
+        
+        stats["pending_payments"] -= 1
+        stats["completed_payments"] += 1
+        stats["total_volume_ton"] += airdrops_db[transaction_id]["price"]
+        
+        return {"status": "verified", "airdrop": airdrops_db[transaction_id]}
     
-    # Generate transaction ID
-    transaction_id = hashlib.md5(f"{request.user_id}_{int(time.time())}".encode()).hexdigest()[:10]
-    
-    # Create payment URL
-    payment_url = f"ton://transfer/{wallet}?amount={price_ils}&text=Airdrop-{transaction_id}"
-    qr_code = f"https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={payment_url}"
-    
-    return {
-        "status": "pending_payment",
-        "transaction_id": transaction_id,
-        "user_id": request.user_id,
-        "amount_ton": price_ils,
-        "price_ils": price_ils,
-        "ton_wallet": wallet,
-        "payment_url": payment_url,
-        "qr_code": qr_code,
-        "message": "Please complete payment in TON",
-        "expires_in": 3600,
-        "created_at": datetime.now().isoformat(),
-        "instructions": "Send TON to the wallet address above. Keep your transaction ID for verification."
-    }
+    return {"status": "not_found"}
 
-# ===== USER BALANCE =====
-@app.get("/api/v1/users/{user_id}/balance")
-async def get_user_balance(user_id: int):
-    """Get user balance"""
-    print(f"💰 Balance check for user: {user_id}")
-    
-    return {
-        "user_id": user_id,
-        "balance_tokens": 1000,  # Default 1000 tokens
-        "balance_ton": 0,
-        "pending_airdrops": 1,
-        "completed_airdrops": 0,
-        "total_spent_ton": 44.4,
-        "total_spent_ils": 44.4,
-        "last_transaction": None,
-        "checked_at": datetime.now().isoformat()
-    }
-
-# ===== TRANSACTION VERIFICATION =====
-@app.get("/api/v1/transactions/{transaction_id}/verify")
-async def verify_transaction(transaction_id: str):
-    """Verify a payment transaction"""
-    print(f"✅ Verifying transaction: {transaction_id}")
-    
-    return {
-        "transaction_id": transaction_id,
-        "status": "pending",
-        "verified": False,
-        "message": "Payment verification in progress. Please check back in a few minutes.",
-        "checked_at": datetime.now().isoformat(),
-        "next_check": time.time() + 300  # 5 minutes
-    }
-
-# ===== TELEGRAM WEBHOOK =====
-@app.post("/api/v1/webhook/telegram")
-async def telegram_webhook(update: dict):
-    """Receive Telegram webhook updates"""
-    print(f"📨 Telegram webhook received: {update.get('update_id')}")
-    
-    return {
-        "status": "received",
-        "update_id": update.get("update_id"),
-        "processed": True,
-        "timestamp": datetime.now().isoformat()
-    }
-
-# ===== STATUS ENDPOINT =====
-@app.get("/status")
-async def status():
-    """System status"""
-    return {
-        "api": "running",
-        "database": "simulated",
-        "telegram_bot": "active",
-        "ton_integration": "simulated",
-        "version": "3.0.0",
-        "uptime": "0 days",
-        "timestamp": datetime.now().isoformat()
-    }
-
-# ===== MAIN =====
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
-    print(f"🚀 Starting Airdrop API v3.0 on port {port}")
-    print(f"💰 TON Wallet: {os.getenv('TON_WALLET_ADDRESS', 'Not configured')}")
-    print(f"💵 Price: {os.getenv('AIRDROP_PRICE_ILS', '44.4')} ₪")
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -1,29 +1,9 @@
-﻿# Railway Configuration - Airdrop Project
-
-[build]
+﻿[build]
 builder = "nixpacks"
 
 [deploy]
 healthCheckPath = "/health"
-healthCheckTimeout = 30
 
-# Environment variables
 [variables]
 TON_WALLET_ADDRESS = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
-AIRDROP_PRICE_ILS = "44.4"
-TELEGRAM_TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
-API_URL = "https://successful-fulfillment-production.up.railway.app"
-PORT = "8000"
-PYTHONUNBUFFERED = "true"
-
-# API Service (port 8000)
-[[services]]
-name = "api"
-httpPort = 8000
-healthCheckPath = "/health"
-run = "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
-
-# Bot Service (no HTTP port - just background process)
-[[services]]
-name = "bot"
-run = "python bot/updated_bot.py"
+ADMIN_KEY = "airdrop_admin_2026"
