@@ -4,8 +4,6 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -17,10 +15,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Create necessary directories
-RUN mkdir -p app/routes bot
+RUN mkdir -p app bot
 
-# Expose port
+# Expose port for API only
 EXPOSE 8000
 
-# Run the API
+# Default command (can be overridden by Railway)
 CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
