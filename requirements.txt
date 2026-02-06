@@ -1,19 +1,15 @@
-<<<<<<< HEAD
+
 fastapi>=0.110,<1.0
 uvicorn[standard]>=0.27
-
-# settings/env
 pydantic-settings>=2.0
 python-dotenv>=1.0
 
-# db
+
 SQLAlchemy>=2.0
 psycopg2-binary>=2.9
 
-# redis
 redis>=5.0
 
-# common extras
 httpx>=0.26
 python-multipart>=0.0.9
 python-telegram-bot>=21,<22
@@ -22,10 +18,8 @@ python-telegram-bot>=21,<22
 python-telegram-bot>=21.0
 
 alembic==1.13.2
-=======
 ﻿python-telegram-bot==20.8
 httpx>=0.26.0,<0.27.0
 python-dotenv==1.0.1
 pydantic==2.6.1
 pydantic-settings==2.1.0
->>>>>>> 03e5c1437b28768ba89ff31f6cea0fc62306fdf0
