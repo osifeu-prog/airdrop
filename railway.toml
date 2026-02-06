@@ -1,82 +1,25 @@
-﻿[build]
+﻿# Railway Configuration for Airdrop Project
+
+[build]
 builder = "nixpacks"
 
 [deploy]
-numReplicas = 1
-healthcheckPath = "/health"
-healthcheckTimeout = 60
-restartPolicyType = "always"
+healthCheckPath = "/health"
+healthCheckTimeout = 60
 
-# ===== SERVICE: WEB API =====
-[[services]]
-name = "api"
-priority = 1
-httpPort = 8000
-healthcheckPath = "/health"
-healthcheckTimeout = 30
-startTimeout = 60
-
-[services.env]
-PORT = "8000"
-NODE_ENV = "production"
-PYTHONUNBUFFERED = "true"
-
-# ===== SERVICE: TELEGRAM BOT =====
-[[services]]
-name = "bot"
-priority = 2
-run = "python bot/updated_bot.py"
-startTimeout = 60
-
-[services.env]
-TELEGRAM_TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
-API_URL = "https://${RAILWAY_STATIC_URL}"
-PYTHONUNBUFFERED = "true"
-
-# ===== ENVIRONMENT VARIABLES (Shared) =====
+# Environment Variables (shared across services)
 [variables]
 TON_WALLET_ADDRESS = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
 AIRDROP_PRICE_ILS = "44.4"
-PAYMENT_CURRENCY = "TON"
-PAYMENT_PROVIDER = "ton"
+TELEGRAM_TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
+API_URL = "https://successful-fulfillment-production.up.railway.app"
 
-# Database (if added later)
-# DATABASE_URL = "postgresql://postgres:password@localhost:5432/airdrop"
-# REDIS_URL = "redis://localhost:6379/0"
+# Define services
+[[services]]
+name = "api"
+httpPort = 8000
+run = "python -m uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
-# Admin
-# ADMIN_ID = "123456789"
-
-# ===== DEPLOYMENT HOOKS =====
-[[deploy.hooks]]
-command = "python -c 'print(\"🚀 Deployment started!\")'"
-type = "pre-deploy"
-
-[[deploy.hooks]]
-command = "pip install -r requirements.txt"
-type = "build"
-
-[[deploy.hooks]]
-command = "python -c 'print(\"✅ Build completed successfully!\")'"
-type = "post-build"
-
-# ===== HEALTH CHECKS =====
-[[healthchecks]]
-name = "api-health"
-path = "/health"
-initialDelay = 10
-timeout = 5
-interval = 30
-
-[[healthchecks]]
-name = "api-root"
-path = "/"
-initialDelay = 15
-timeout = 5
-interval = 60
-
-# ===== VOLUMES (if needed for persistence) =====
-# [[volumes]]
-# name = "data"
-# mountPath = "/app/data"
-# size = "1GB"
+[[services]]
+name = "bot"
+run = "python bot/updated_bot.py"
