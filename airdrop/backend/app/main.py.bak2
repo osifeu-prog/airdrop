@@ -1,0 +1,104 @@
+﻿import time
+import logging
+from fastapi import FastAPI
+from fastapi.responses import RedirectResponse
+
+from app.core.config import settings
+from app.db.session import init_db
+from app.redis.client import init_redis
+
+LOG = logging.getLogger("app")
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="Airdrop Platform", version="stable")
+
+    @app.on_event("startup")
+    def _startup():
+        # ---- DB (safe) ----
+        try:
+            if settings.DATABASE_URL and os.getenv("DB_DISABLED") != "1":
+                if callable(init_db):
+                    init_db()
+                elif hasattr(init_db, "configure"):
+                    init_db.configure(settings.DATABASE_URL)
+
+            if hasattr(init_db, "is_enabled") and init_db.is_enabled():
+                LOG.info("DB enabled.")
+            else:
+                LOG.warning("DB disabled (local).")
+        except Exception as e:
+            LOG.exception("DB init failed (ignored): %s", e)
+
+        # ---- Redis (safe) ----
+        try:
+            if settings.REDIS_URL and os.getenv("REDIS_DISABLED") != "1":
+                if callable(init_redis):
+                    init_redis()
+                elif hasattr(init_redis, "configure"):
+                    init_redis.configure(settings.REDIS_URL)
+        except Exception as e:
+            LOG.exception("Redis init failed (ignored): %s", e)
+
+        # ---- Bootstrap (LOCAL ONLY) ----
+        try:
+            if settings.ENVIRONMENT.lower() == "local" and hasattr(init_db, "is_enabled") and init_db.is_enabled():
+                init_db.ensure_bootstrap()
+                LOG.info("DB bootstrap ensured (local).")
+            else:
+                LOG.warning("DB bootstrap skipped.")
+        except Exception as e:
+            LOG.exception("DB bootstrap failed (ignored): %s", e)
+
+        LOG.info("Startup complete.")
+
+    @app.on_event("shutdown")
+    def _shutdown():
+        try:
+            init_redis.close()
+        except Exception:
+            pass
+        try:
+            init_db.close()
+        except Exception:
+            pass
+        LOG.info("Shutdown complete.")
+
+    @app.get("/health", include_in_schema=False)
+    def health():
+        return {"status": "ok", "env": settings.ENVIRONMENT}
+
+    @app.get("/ready", include_in_schema=False)
+    def ready():
+        deadline = time.time() + 0.3
+        db_ok = False
+        redis_ok = False
+
+        if init_db.is_enabled():
+            try:
+                if time.time() < deadline:
+                    db_ok = bool(init_db.ping())
+            except Exception:
+                pass
+
+        try:
+            if time.time() < deadline:
+                redis_ok = bool(init_redis.ping())
+        except Exception:
+            pass
+
+        return {
+            "db": "up" if db_ok else "down",
+            "redis": "up" if redis_ok else "down",
+        }
+
+    @app.get("/public/progress", include_in_schema=False)
+    def _public_progress_legacy_redirect():
+        return RedirectResponse(
+            url="/api/v1/public/progress",
+            status_code=307,
+        )
+
+    return app
+
+
+app = create_app()

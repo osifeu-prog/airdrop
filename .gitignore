@@ -1,0 +1,33 @@
+<<<<<<< HEAD
+﻿.airdrop.pid
+logs/
+backup_*/
+__pycache__/
+.env
+=======
+﻿# env / secrets
+.env
+.env.*
+!.env.example
+
+# python
+.venv/
+__pycache__/
+*.pyc
+
+# local runtime
+.run_port.txt
+
+# backups
+*.bak_*
+*.bak.*
+# logs/traces/db
+*.log
+*_trace*.txt
+_smoke_*.log
+_smoke_*.out.log
+_smoke_*.err.log
+dev.db
+>>>>>>> 03e5c1437b28768ba89ff31f6cea0fc62306fdf0
+
+railway.json
