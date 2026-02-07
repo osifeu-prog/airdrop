@@ -1,9 +1,0 @@
-﻿[build]
-builder = "nixpacks"
-
-[deploy]
-healthCheckPath = "/health"
-
-[variables]
-TON_WALLET_ADDRESS = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
-ADMIN_KEY = "airdrop_admin_2026"
