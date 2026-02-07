@@ -2,15 +2,21 @@
 
 WORKDIR /app
 
-# התקן דרישות
+# התקן דרישות מערכת
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# העתק דרישות והתקן
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# העתק קבצים
+# העתק את כל הקבצים
 COPY . .
 
 # צור תיקיית data
 RUN mkdir -p data
 
 # הרץ את ה-API
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "app/main.py"]
