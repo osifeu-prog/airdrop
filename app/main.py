@@ -701,3 +701,38 @@ def start_bot_worker():
 
 # התחל את הבוט ב-background
 start_bot_worker()
+
+# ====================
+# FULL TELEGRAM BOT - הרץ בתוך ה-API
+# ====================
+import threading
+
+def start_full_bot_worker():
+    """מתחיל את הבוט המלא ב-thread נפרד"""
+    try:
+        from app.full_bot import start_full_bot
+        import threading
+        
+        bot_thread = threading.Thread(target=start_full_bot, daemon=True)
+        bot_thread.start()
+        print("🤖 Full Telegram Bot started in background thread")
+        return True
+    except Exception as e:
+        print(f"⚠️  Could not start full bot: {e}")
+        # נסה את הבוט הפשוט כגיבוי
+        try:
+            from app.bot_worker import TelegramBotWorker
+            bot = TelegramBotWorker()
+            bot_thread = threading.Thread(target=bot.run, daemon=True)
+            bot_thread.start()
+            print("🤖 Simple Telegram Bot started as fallback")
+            return True
+        except Exception as e2:
+            print(f"❌ Could not start any bot: {e2}")
+            return False
+
+# התחל את הבוט
+if start_full_bot_worker():
+    print("✅ Bot system initialized successfully")
+else:
+    print("❌ Bot system failed to start")
