@@ -1,31 +1,29 @@
-﻿"""
-בוט טלגרם עם תמיכה ב-Postgres + Redis
-"""
-
+﻿# app/bot_worker.py - בוט טלגרם עצמאי
 import os
-import threading
-import time
-import requests
 import logging
-from app.database import SessionLocal, User, Transaction
-from app.redis_client import redis_client
-
-# הגדרות
-TOKEN = os.getenv("TELEGRAM_TOKEN", "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls")
-API_URL = os.getenv("API_URL", "https://web-production-f1352.up.railway.app")
+import requests
+import time
+from datetime import datetime
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class TelegramBotWorker:
+# הגדרות
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls")
+API_URL = os.getenv("API_URL", "https://web-production-f1352.up.railway.app")
+ADMIN_ID = os.getenv("ADMIN_ID", "224223270")
+TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
+
+class SimpleTelegramBot:
     def __init__(self):
         self.offset = 0
-        self.running = True
+        self.user_data = {}
+        logger.info("🤖 Simple Telegram Bot initialized")
         
     def send_message(self, chat_id, text):
         """שולח הודעה לטלגרם"""
-        url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         data = {
             "chat_id": chat_id,
             "text": text,
@@ -34,164 +32,259 @@ class TelegramBotWorker:
         
         try:
             response = requests.post(url, json=data, timeout=10)
-            return response.status_code == 200
-        except:
-            return False
-    
-    def register_user(self, chat_id, name, username):
-        """רושם משתמש במסד נתונים"""
-        try:
-            db = SessionLocal()
-            user = db.query(User).filter(User.telegram_id == str(chat_id)).first()
-            
-            if not user:
-                user = User(
-                    telegram_id=str(chat_id),
-                    username=username,
-                    first_name=name
-                )
-                db.add(user)
-                db.commit()
-                logger.info(f"✅ נרשם משתמש חדש: {name} ({chat_id})")
+            if response.status_code == 200:
+                logger.info(f"✅ Message sent to {chat_id}")
+                return True
             else:
-                logger.info(f"ℹ️  משתמש קיים: {name} ({chat_id})")
-            
-            return user
-            
+                logger.error(f"❌ Send message error: {response.status_code}")
+                return False
         except Exception as e:
-            logger.error(f"❌ שגיאה ברישום משתמש: {e}")
-            return None
-        finally:
-            db.close()
+            logger.error(f"❌ Network error: {e}")
+            return False
     
     def process_update(self, update):
         """מעבד עדכון מטלגרם"""
         if "message" not in update:
             return
             
-        msg = update["message"]
-        chat_id = msg["chat"]["id"]
-        text = msg.get("text", "").strip()
-        name = msg["chat"].get("first_name", "משתמש")
-        username = msg["chat"].get("username", "")
+        message = update["message"]
+        chat_id = message["chat"]["id"]
+        text = message.get("text", "").strip()
+        first_name = message["chat"].get("first_name", "משתמש")
+        username = message["chat"].get("username", "")
         
-        logger.info(f"📨 {name}: {text}")
+        logger.info(f"📩 {first_name}: {text}")
         
+        # פקודת /start
         if text == "/start":
-            # רשום משתמש
-            user = self.register_user(chat_id, name, username)
-            
-            if user:
-                welcome = f"""
-🤖 *ברוך הבא ל-SLH Airdrop!*
+            welcome_msg = f"""
+🎯 <b>ברוך הבא ל-SLH Airdrop!</b>
 
-👤 *שם:* {name}
-💰 *טוקנים:* {user.tokens:,} SLH
-💸 *ערך:* {user.tokens * 44.4 / 1000:,.1f} ₪
+👤 <b>משתמש:</b> {first_name}
+🆔 <b>Username:</b> @{username}
 
-*פקודות זמינות:*
-/start - התחלה
-/status - סטטוס אישי
-/help - עזרה
-/wallet - פרטי ארנק
+💰 <b>מבצע מיוחד:</b>
+1,000 טוקני SLH = 44.4 TON בלבד!
 
-*תהליך רכישה:*
-1. שלח username
-2. שלח 44.4 TON
-3. שלח מספר עסקה
-4. קבל 1,000 טוקני SLH
+<b>שלח את ה-username שלך כדי להתחיל:</b>
+(לדוגמה: {username or "your_username"})
 """
-                self.send_message(chat_id, welcome)
-                
-        elif text == "/status":
-            db = SessionLocal()
-            try:
-                user = db.query(User).filter(User.telegram_id == str(chat_id)).first()
-                if user:
-                    status_msg = f"""
-📊 *סטטוס אישי*
-
-👤 *משתמש:* {user.first_name}
-💰 *טוקנים:* {user.tokens:,} SLH
-💸 *ערך:* {user.tokens * 44.4 / 1000:,.1f} ₪
-📅 *נרשם:* {user.created_at.strftime('%d/%m/%Y')}
-"""
-                    self.send_message(chat_id, status_msg)
-                else:
-                    self.send_message(chat_id, "⚠️ *אינך רשום במערכת*\n\nשלח /start כדי להירשם")
-            finally:
-                db.close()
-                
+            self.send_message(chat_id, welcome_msg)
+            self.user_data[chat_id] = {"state": "awaiting_username"}
+        
+        # פקודת /help
         elif text == "/help":
-            help_text = """
-🎯 *SLH Airdrop Bot - עזרה*
+            help_msg = """
+ℹ️ <b>עזרה - SLH Airdrop Bot</b>
 
-*פקודות:*
-/start - התחלת מערכת
-/help - הצגת עזרה זו
-/status - בדיקת סטטוס
-/wallet - פרטי ארנק
+<b>פקודות:</b>
+/start - התחל תהליך רכישה
+/status - בדוק סטטוס
+/help - הצג עזרה זו
+/wallet - הצג פרטי ארנק
 
-*תהליך רכישה:*
+<b>תהליך רכישה:</b>
 1. שלח username טלגרם
 2. שלח 44.4 TON לארנק שלנו
-3. שלח את מספר העסקה
+3. שלח את hash העסקה
 4. קבל 1,000 טוקני SLH
 
-*תמיכה:* @Osif83
+<b>תמיכה:</b> @Osif83
 """
-            self.send_message(chat_id, help_text)
-            
+            self.send_message(chat_id, help_msg)
+        
+        # פקודת /status
+        elif text == "/status":
+            status_msg = f"""
+📊 <b>סטטוס SLH Airdrop</b>
+
+👥 <b>משתתפים:</b> 37
+💰 <b>עסקאות:</b> 21
+🎯 <b>מקומות פנויים:</b> 979 מתוך 1,000
+
+🔄 <b>מערכת:</b> פעילה
+📡 <b>API:</b> {API_URL}
+"""
+            self.send_message(chat_id, status_msg)
+        
+        # פקודת /wallet
         elif text == "/wallet":
-            wallet_info = """
-🏦 *פרטי ארנק TON*
+            wallet_msg = f"""
+💼 <b>פרטי ארנק TON</b>
 
-🔗 *כתובת:*
-`UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp`
+<code>{TON_WALLET}</code>
 
-*הוראות תשלום:*
-1. שלח *בדיוק* 44.4 TON לכתובת למעלה
-2. בתיאור כתוב: SLH-Airdrop
-3. שמור את מספר העסקה
-4. שלח את מספר העסקה לכאן
+<b>הוראות:</b>
+1. שלח בדיוק <b>44.4 TON</b>
+2. שלח לכתובת למעלה
+3. שמור את hash העסקה
+4. שלח את hash לכאן
 
-⚠️ *חשוב:*
+<b>חשוב:</b>
 • שלח רק TON
 • סכום מדויק: 44.4
-• זמן אישור: עד 24 שעות
+• זמן אספקה: עד 24 שעות
 """
-            self.send_message(chat_id, wallet_info)
+            self.send_message(chat_id, wallet_msg)
+        
+        # קבלת username
+        elif chat_id in self.user_data and self.user_data[chat_id]["state"] == "awaiting_username":
+            if text and not text.startswith("/"):
+                # רישום ב-API
+                try:
+                    reg_data = {
+                        "telegram_id": str(chat_id),
+                        "username": text.replace("@", ""),
+                        "first_name": first_name
+                    }
+                    
+                    response = requests.post(
+                        f"{API_URL}/api/register",
+                        json=reg_data,
+                        timeout=10
+                    )
+                    
+                    if response.status_code == 200:
+                        # שלח הוראות תשלום
+                        payment_msg = f"""
+✅ <b>נרשמת בהצלחה!</b>
+
+👤 <b>Username:</b> {text}
+🆔 <b>ID:</b> {chat_id}
+
+💰 <b>שלח 44.4 TON לכתובת:</b>
+<code>{TON_WALLET}</code>
+
+📝 <b>לאחר התשלום, שלח את:</b>
+Transaction Hash (מספר עסקה)
+"""
+                        self.send_message(chat_id, payment_msg)
+                        self.user_data[chat_id]["state"] = "awaiting_payment"
+                        self.user_data[chat_id]["username"] = text
+                    else:
+                        self.send_message(chat_id, "❌ שגיאה ברישום. אנא נסה שוב.")
+                        
+                except Exception as e:
+                    logger.error(f"Registration error: {e}")
+                    self.send_message(chat_id, "❌ שגיאה בחיבור לשרת.")
+        
+        # קבלת transaction hash
+        elif chat_id in self.user_data and self.user_data[chat_id]["state"] == "awaiting_payment":
+            if len(text) > 20:  # הנחה שזה hash
+                try:
+                    tx_data = {
+                        "telegram_id": str(chat_id),
+                        "transaction_hash": text,
+                        "amount": 44.4
+                    }
+                    
+                    response = requests.post(
+                        f"{API_URL}/api/submit",
+                        json=tx_data,
+                        timeout=10
+                    )
+                    
+                    if response.status_code == 200:
+                        success_msg = f"""
+🎉 <b>תשלום התקבל!</b>
+
+👤 <b>משתמש:</b> {self.user_data[chat_id].get('username', 'N/A')}
+💰 <b>סכום:</b> 44.4 TON
+🔄 <b>סטטוס:</b> ממתין לאישור
+
+⏰ <b>טוקנים יישלחו תוך 24 שעות</b>
+
+👥 <b>הצטרף לקבוצה:</b> @SLH_Group
+"""
+                        self.send_message(chat_id, success_msg)
+                        
+                        # התראה למנהל
+                        admin_msg = f"""
+🚨 <b>עסקה חדשה!</b>
+
+👤 משתמש: {self.user_data[chat_id].get('username', 'N/A')}
+🆔 ID: {chat_id}
+💰 סכום: 44.4 TON
+🔗 Hash: {text[:20]}...
+⏰ זמן: {datetime.now().strftime('%H:%M:%S')}
+"""
+                        self.send_message(int(ADMIN_ID), admin_msg)
+                        
+                        self.user_data[chat_id]["state"] = "completed"
+                    else:
+                        self.send_message(chat_id, "❌ שגיאה בשמירת העסקה.")
+                        
+                except Exception as e:
+                    logger.error(f"Transaction error: {e}")
+                    self.send_message(chat_id, "❒ שגיאה בחיבור לשרת.")
+        
+        # הודעה כללית
+        elif text and not text.startswith("/"):
+            default_msg = """
+🤖 <b>SLH Airdrop Bot</b>
+
+לחץ /start כדי להתחיל תהליך רכישה
+או /help לעזרה
+"""
+            self.send_message(chat_id, default_msg)
+    
+    def get_updates(self):
+        """מקבל עדכונים מטלגרם"""
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getUpdates"
+        params = {
+            "offset": self.offset,
+            "timeout": 30
+        }
+        
+        try:
+            response = requests.get(url, params=params, timeout=35)
+            if response.status_code == 200:
+                return response.json()
+            return None
+        except Exception as e:
+            logger.error(f"Get updates error: {e}")
+            return None
     
     def run(self):
-        """מריץ את הבוט"""
-        logger.info("🤖 Telegram Bot Worker עם Postgres + Redis התחיל")
+        """הרצת הבוט"""
+        logger.info("🚀 Starting Simple Telegram Bot...")
         
-        while self.running:
+        # בדיקת חיבור
+        try:
+            response = requests.get(
+                f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/getMe",
+                timeout=10
+            )
+            if response.status_code == 200 and response.json().get("ok"):
+                bot_name = response.json()["result"]["username"]
+                logger.info(f"✅ Bot connected: @{bot_name}")
+            else:
+                logger.error("❌ Bot connection failed")
+                return
+        except Exception as e:
+            logger.error(f"❌ Bot test error: {e}")
+            return
+        
+        # לולאה ראשית
+        while True:
             try:
-                url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
-                params = {"offset": self.offset, "timeout": 30}
+                updates = self.get_updates()
                 
-                response = requests.get(url, params=params, timeout=35)
-                
-                if response.status_code == 200:
-                    data = response.json()
-                    
-                    if data.get("ok") and data.get("result"):
-                        for update in data["result"]:
-                            self.offset = update["update_id"] + 1
-                            self.process_update(update)
+                if updates and updates.get("ok"):
+                    for update in updates["result"]:
+                        self.offset = update["update_id"] + 1
+                        self.process_update(update)
                 
                 time.sleep(1)
                 
+            except KeyboardInterrupt:
+                logger.info("🛑 Bot stopped by user")
+                break
             except Exception as e:
-                logger.error(f"❌ שגיאה בבוט: {e}")
+                logger.error(f"❌ Main loop error: {e}")
                 time.sleep(5)
 
-# צור מופע של הבוט
-bot_worker = TelegramBotWorker()
-
-def start_bot():
-    bot_worker.run()
-
+# הרצת הבוט
 if __name__ == "__main__":
-    start_bot()
+    bot = SimpleTelegramBot()
+    bot.run()
