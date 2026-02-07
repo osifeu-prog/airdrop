@@ -17,7 +17,7 @@ from typing import Dict, Optional
 # CONFIGURATION
 # ====================
 TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
-API_URL = "http://localhost:8000"  # יש לשנות לכתובת ה-Railway אחרי ההעלאה
+API_URL = ""  # יש לשנות לכתובת ה-Railway אחרי ההעלאה
 ADMIN_ID = "7757102350"
 TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
 
@@ -470,10 +470,10 @@ class SLHAirdropBot:
         
         # יצירת מקלדת תפריט
         menu_keyboard = create_keyboard([
-            [{EMOJI['money']} " קניית טוקנים"],
-            [{EMOJI['chart']} " סטטוס אישי", {EMOJI['gift']} " בונוסים"],
-            [{EMOJI['link']} " קישור הפניה", {EMOJI['trophy']} " טבלת מובילים"],
-            [{EMOJI['info']} " מידע והסברים", {EMOJI['gear']} " הגדרות"]
+            [EMOJI['money'] + ' קניית טוקנים'],
+            [EMOJI['chart'] + ' סטטוס אישי', EMOJI['gift'] + ' בונוסים'],
+            [EMOJI['link'] + ' קישור הפניה', EMOJI['trophy'] + ' טבלת מובילים'],
+            [EMOJI['info'] + ' מידע והסברים', EMOJI['gear'] + ' הגדרות']
         ])
         
         send_telegram_message(chat_id, main_menu_message(), reply_markup=menu_keyboard)
@@ -488,27 +488,27 @@ class SLHAirdropBot:
     
     def handle_menu_selection(self, chat_id, text, user_name):
         """מטפל בבחירת תפריט"""
-        if text == f"{EMOJI['money']} קניית טוקנים":
+        if text == EMOJI['money'] + ' קניית טוקנים':
             self.user_states[chat_id] = {"state": "awaiting_username"}
             send_telegram_message(chat_id, 
                 f"{EMOJI['info']} <b>שלב ראשון: אימות משתמש</b>\n\nשלח לי את שם המשתמש הטלגרם שלך (לדוגמה: @username)")
             
-        elif text == f"{EMOJI['chart']} סטטוס אישי":
+        elif text == EMOJI['chart'] + ' סטטוס אישי':
             self.show_user_status(chat_id, user_name)
             
-        elif text == f"{EMOJI['gift']} בונוסים":
+        elif text == EMOJI['gift'] + ' בונוסים':
             self.show_bonus_info(chat_id)
             
-        elif text == f"{EMOJI['link']} קישור הפניה":
+        elif text == EMOJI['link'] + ' קישור הפניה':
             self.show_referral_link(chat_id)
             
-        elif text == f"{EMOJI['trophy']} טבלת מובילים":
+        elif text == EMOJI['trophy'] + ' טבלת מובילים':
             self.show_leaderboard(chat_id)
             
-        elif text == f"{EMOJI['info']} מידע והסברים":
+        elif text == EMOJI['info'] + ' מידע והסברים':
             self.show_info(chat_id)
             
-        elif text == f"{EMOJI['gear']} הגדרות":
+        elif text == EMOJI['gear'] + ' הגדרות':
             self.show_settings(chat_id)
     
     def handle_username(self, chat_id, username, user_name):
@@ -796,10 +796,10 @@ def main():
                                 else:
                                     # תחזור לתפריט ראשי
                                     menu_keyboard = create_keyboard([
-                                        [{EMOJI['money']} " קניית טוקנים"],
-                                        [{EMOJI['chart']} " סטטוס אישי", {EMOJI['gift']} " בונוסים"],
-                                        [{EMOJI['link']} " קישור הפניה", {EMOJI['trophy']} " טבלת מובילים"],
-                                        [{EMOJI['info']} " מידע והסברים", {EMOJI['gear']} " הגדרות"]
+                                        [EMOJI['money'] + ' קניית טוקנים'],
+                                        [EMOJI['chart'] + ' סטטוס אישי', EMOJI['gift'] + ' בונוסים'],
+                                        [EMOJI['link'] + ' קישור הפניה', EMOJI['trophy'] + ' טבלת מובילים'],
+                                        [EMOJI['info'] + ' מידע והסברים', EMOJI['gear'] + ' הגדרות']
                                     ])
                                     send_telegram_message(chat_id, main_menu_message(), reply_markup=menu_keyboard)
             
@@ -811,3 +811,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
