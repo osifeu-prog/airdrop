@@ -14,15 +14,11 @@ data/
 *.sqlite
 *.log
 bot.log
-*.log.*
 
 # Secrets
 *.env
-.env.local
 .secrets/
 config.json
-config.py
-secrets.json
 
 # OS
 .DS_Store
@@ -36,7 +32,6 @@ Thumbs.db
 
 # Railway
 .railway/
-railway.json
 
 # Temp
 tmp/
@@ -44,12 +39,6 @@ temp/
 logs/
 
 # קבצים אישיים
+*.ps1
+*.md
 FACEBOOK_POST_COMPLETE.md
-final_launch.ps1
-launch_everything.ps1
-find_and_stop_bots.ps1
-test_and_launch.ps1
-push_to_github.ps1
-
-# Backups
-backup_*.zip
