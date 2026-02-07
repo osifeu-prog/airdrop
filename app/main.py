@@ -348,3 +348,11 @@ if __name__ == "__main__":
         port=port,
         reload=True
     )
+# ... (כל הקוד הקיים נשאר כפי שהוא) ...
+
+# ====================
+# START APPLICATION
+# ====================
+
+# הסר את החלק של if __name__ == "__main__":
+# ב-Railway, זה ירוץ דרך uvicorn command line

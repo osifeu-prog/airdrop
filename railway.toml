@@ -2,19 +2,7 @@
 builder = "nixpacks"
 
 [deploy]
-startCommand = "python app/main.py"
+startCommand = "python entrypoint.py"
 
 [[services]]
 port = 8000
-
-[environments.production.variables]
-NIXPACKS_USE_BAZEL = "true"
-
-# הגדר שני processes נפרדים
-[[processes]]
-name = "web"
-command = "python app/main.py"
-
-[[processes]]
-name = "bot"
-command = "python app/bot_worker.py"

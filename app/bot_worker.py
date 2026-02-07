@@ -493,3 +493,23 @@ def start_bot():
 
 if __name__ == "__main__":
     start_bot()
+        # המתן שה-API יהיה זמין
+        logger.info("⏳ Waiting for API to be ready...")
+        api_ready = False
+        for i in range(30):  # נסה עד 30 פעמים (30 שניות)
+            try:
+                response = requests.get(f"{API_URL}/health", timeout=5)
+                if response.status_code == 200:
+                    api_ready = True
+                    logger.info("✅ API is ready!")
+                    break
+                else:
+                    logger.warning(f"⚠️ API not ready yet (attempt {i+1}/30)")
+            except:
+                logger.warning(f"⚠️ API connection failed (attempt {i+1}/30)")
+            
+            time.sleep(1)
+        
+        if not api_ready:
+            logger.error("❌ API did not become ready after 30 seconds")
+            logger.warning("⚠️ Bot will continue without API connection")

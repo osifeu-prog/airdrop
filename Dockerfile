@@ -2,21 +2,17 @@
 
 WORKDIR /app
 
-# התקן דרישות מערכת
+# התקן תלות מערכת בסיסית
 RUN apt-get update && apt-get install -y \
     gcc \
-    postgresql-client \
     && rm -rf /var/lib/apt/lists/*
 
-# העתק דרישות והתקן
+# העתק קבצים
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# העתק את כל הקבצים
 COPY . .
 
-# צור תיקיית data
-RUN mkdir -p data
+# התקן תלויות Python
+RUN pip install --no-cache-dir -r requirements.txt
 
-# הרץ את ה-API
-CMD ["python", "app/main.py"]
+# הרץ את המערכת
+CMD ["python", "entrypoint.py"]
