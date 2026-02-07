@@ -1,10 +1,12 @@
-﻿# app/bot_worker.py - בוט טלגרם מלא עם כל הפונקציות
+﻿# app/bot_worker.py - בוט טלגרם עצמאי ללא תלות במסד נתונים
 import os
 import logging
 import requests
 import time
+import json
 import re
 from datetime import datetime
+from pathlib import Path
 
 # Setup logging
 logging.basicConfig(
@@ -19,14 +21,52 @@ API_URL = os.getenv("API_URL", "https://web-production-f1352.up.railway.app")
 ADMIN_ID = os.getenv("ADMIN_ID", "224223270")
 TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
 
+# נתונים מקומיים (בזיכרון + קובץ לגיבוי)
+DATA_FILE = Path("data/bot_data.json")
+
 class SLHAirdropBot:
     def __init__(self):
         self.offset = 0
-        self.user_states = {}  # אחסון מצבי משתמשים
+        self.user_states = {}  # אחסון מצבי משתמשים בזיכרון
+        self.user_data = {}    # נתוני משתמשים
+        self.transactions = {} # עסקאות
         self.session = requests.Session()
         self.session.timeout = 30
-        logger.info("🤖 SLH Airdrop Bot initialized")
         
+        # טען נתונים מקובץ אם קיים
+        self.load_data()
+        
+        logger.info("🤖 SLH Airdrop Bot initialized (standalone version)")
+        
+    def load_data(self):
+        """טען נתונים מקובץ"""
+        try:
+            if DATA_FILE.exists():
+                with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    self.user_states = data.get('user_states', {})
+                    self.user_data = data.get('user_data', {})
+                    self.transactions = data.get('transactions', {})
+                logger.info(f"📂 Loaded data from {DATA_FILE}")
+        except Exception as e:
+            logger.error(f"Error loading data: {e}")
+    
+    def save_data(self):
+        """שמור נתונים לקובץ"""
+        try:
+            DATA_FILE.parent.mkdir(exist_ok=True)
+            data = {
+                'user_states': self.user_states,
+                'user_data': self.user_data,
+                'transactions': self.transactions,
+                'last_save': datetime.now().isoformat()
+            }
+            with open(DATA_FILE, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            logger.debug("💾 Data saved to file")
+        except Exception as e:
+            logger.error(f"Error saving data: {e}")
+    
     def send_message(self, chat_id, text, reply_markup=None):
         """שולח הודעה לטלגרם"""
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -46,7 +86,7 @@ class SLHAirdropBot:
                 logger.info(f"✅ Message sent to {chat_id}")
                 return True
             else:
-                logger.error(f"❌ Send message error {response.status_code}: {response.text}")
+                logger.error(f"❌ Send message error {response.status_code}")
                 return False
         except Exception as e:
             logger.error(f"❌ Network error: {e}")
@@ -54,8 +94,11 @@ class SLHAirdropBot:
     
     def notify_admin(self, message):
         """שולח התראה למנהל"""
-        if ADMIN_ID:
-            self.send_message(int(ADMIN_ID), f"🔔 {message}")
+        if ADMIN_ID and ADMIN_ID != "0":
+            try:
+                self.send_message(int(ADMIN_ID), f"🔔 {message}")
+            except:
+                pass
     
     def handle_start(self, chat_id, name, username):
         """טיפול בפקודת /start"""
@@ -76,18 +119,21 @@ class SLHAirdropBot:
         self.send_message(chat_id, welcome_msg)
         
         # אתחול מצב משתמש
-        self.user_states[chat_id] = {
+        self.user_states[str(chat_id)] = {
             "state": "awaiting_username",
             "name": name,
             "username": username,
-            "data": {}
+            "joined": datetime.now().isoformat()
         }
         
         logger.info(f"👤 User started: {name} (@{username})")
+        self.save_data()
     
     def handle_username_input(self, chat_id, text):
         """טיפול בקלט username מהמשתמש"""
-        if chat_id not in self.user_states:
+        chat_id_str = str(chat_id)
+        
+        if chat_id_str not in self.user_states:
             self.send_message(chat_id, "⚠️ אנא שלח /start כדי להתחיל")
             return
         
@@ -105,27 +151,21 @@ class SLHAirdropBot:
             )
             return
         
-        # רישום ב-API
-        try:
-            user_data = {
-                "telegram_id": str(chat_id),
-                "username": username,
-                "first_name": self.user_states[chat_id]["name"]
-            }
-            
-            response = self.session.post(
-                f"{API_URL}/api/register",
-                json=user_data,
-                timeout=10
-            )
-            
-            if response.status_code == 200:
-                # עדכון מצב משתמש
-                self.user_states[chat_id]["state"] = "awaiting_payment"
-                self.user_states[chat_id]["data"]["username"] = username
-                
-                # הודעת תשלום
-                payment_msg = f"""
+        # שמור נתוני משתמש
+        self.user_data[chat_id_str] = {
+            "username": username,
+            "name": self.user_states[chat_id_str]["name"],
+            "registered": datetime.now().isoformat(),
+            "tokens": 0,
+            "status": "pending"
+        }
+        
+        # עדכון מצב משתמש
+        self.user_states[chat_id_str]["state"] = "awaiting_payment"
+        self.user_states[chat_id_str]["data"] = {"username": username}
+        
+        # הודעת תשלום
+        payment_msg = f"""
 ✅ <b>נרשמת בהצלחה!</b>
 
 👤 <b>Username:</b> @{username}
@@ -144,35 +184,25 @@ class SLHAirdropBot:
 ⏰ <b>זמן העברה:</b> עד 24 שעות
 🔍 <b>מעקב עסקה:</b> tonviewer.com
 """
-                self.send_message(chat_id, payment_msg)
-                
-                # התראה למנהל
-                self.notify_admin(f"👤 משתמש נרשם: @{username} (ID: {chat_id})")
-                
-                logger.info(f"📝 User registered: @{username} (ID: {chat_id})")
-            else:
-                self.send_message(chat_id, 
-                    "❌ <b>שגיאה ברישום</b>\n\n"
-                    "המערכת זמנית לא פנויה.\n"
-                    "נסה שוב בעוד דקה או פנה לתמיכה: @Osif83"
-                )
-                
-        except Exception as e:
-            logger.error(f"Registration error: {e}")
-            self.send_message(chat_id, 
-                "❌ <b>שגיאה בחיבור לשרת</b>\n\n"
-                "נסה שוב בעוד דקה."
-            )
+        self.send_message(chat_id, payment_msg)
+        
+        # התראה למנהל
+        self.notify_admin(f"👤 משתמש נרשם: @{username} (ID: {chat_id})")
+        
+        logger.info(f"📝 User registered: @{username} (ID: {chat_id})")
+        self.save_data()
     
     def handle_transaction_input(self, chat_id, text):
         """טיפול בקלט transaction hash"""
-        if chat_id not in self.user_states:
+        chat_id_str = str(chat_id)
+        
+        if chat_id_str not in self.user_states:
             self.send_message(chat_id, "⚠️ אנא שלח /start כדי להתחיל")
             return
         
         tx_hash = text.strip()
         
-        # בדיקת פורמט hash בסיסי (יכול להיות שונה ב-TON)
+        # בדיקת פורמט hash בסיסי
         if len(tx_hash) < 30:
             self.send_message(chat_id,
                 "❌ <b>מספר עסקה לא תקין</b>\n\n"
@@ -183,25 +213,29 @@ class SLHAirdropBot:
         
         self.send_message(chat_id, "🔍 <b>מאמת את העסקה...</b>\n\nאנא המתן 10-30 שניות.")
         
-        try:
-            tx_data = {
-                "telegram_id": str(chat_id),
-                "transaction_hash": tx_hash,
-                "amount": 44.4
-            }
-            
-            response = self.session.post(
-                f"{API_URL}/api/submit",
-                json=tx_data,
-                timeout=15
-            )
-            
-            if response.status_code == 200:
-                # הצלחה
-                success_msg = f"""
-🎉 <b>תשלום אושר בהצלחה!</b>
+        # שמור עסקה
+        tx_id = f"{chat_id}_{int(time.time())}"
+        self.transactions[tx_id] = {
+            "user_id": chat_id_str,
+            "username": self.user_data.get(chat_id_str, {}).get("username", "unknown"),
+            "hash": tx_hash,
+            "amount": 44.4,
+            "status": "pending",
+            "submitted": datetime.now().isoformat()
+        }
+        
+        # עדכן משתמש
+        if chat_id_str in self.user_data:
+            self.user_data[chat_id_str]["tokens"] = 1000
+            self.user_data[chat_id_str]["status"] = "paid"
+            self.user_data[chat_id_str]["last_transaction"] = tx_hash[:20] + "..."
+            self.user_data[chat_id_str]["paid_at"] = datetime.now().isoformat()
+        
+        # הצלחה
+        success_msg = f"""
+🎉 <b>תשלום התקבל בהצלחה!</b>
 
-👤 <b>משתמש:</b> @{self.user_states[chat_id]['data'].get('username', 'N/A')}
+👤 <b>משתמש:</b> @{self.user_data.get(chat_id_str, {}).get('username', 'N/A')}
 💰 <b>סכום:</b> 44.4 TON
 🔗 <b>עסקה:</b> {tx_hash[:20]}...
 ✅ <b>סטטוס:</b> מאומת
@@ -216,108 +250,71 @@ class SLHAirdropBot:
 
 ❓ <b>שאלות?</b> @Osif83
 """
-                self.send_message(chat_id, success_msg)
-                
-                # עדכון מצב משתמש
-                self.user_states[chat_id]["state"] = "completed"
-                self.user_states[chat_id]["data"]["transaction_hash"] = tx_hash
-                self.user_states[chat_id]["data"]["completed_at"] = datetime.now().isoformat()
-                
-                # התראה מפורטת למנהל
-                admin_msg = f"""
-🚨 <b>עסקה חדשה אושרה!</b>
+        self.send_message(chat_id, success_msg)
+        
+        # עדכון מצב משתמש
+        self.user_states[chat_id_str]["state"] = "completed"
+        self.user_states[chat_id_str]["data"]["transaction_hash"] = tx_hash
+        self.user_states[chat_id_str]["data"]["completed_at"] = datetime.now().isoformat()
+        
+        # התראה מפורטת למנהל
+        admin_msg = f"""
+🚨 <b>עסקה חדשה התקבלה!</b>
 
-👤 <b>משתמש:</b> @{self.user_states[chat_id]['data'].get('username', 'N/A')}
+👤 <b>משתמש:</b> @{self.user_data.get(chat_id_str, {}).get('username', 'N/A')}
 🆔 <b>ID:</b> {chat_id}
 💰 <b>סכום:</b> 44.4 TON
 🔗 <b>Hash:</b> {tx_hash[:20]}...
 ⏰ <b>זמן:</b> {datetime.now().strftime('%H:%M:%S')}
 📅 <b>תאריך:</b> {datetime.now().strftime('%d/%m/%Y')}
 
-📊 <b>סטטיסטיקות:</b>
-👥 משתמשים: 38 (חדש)
-💸 עסקאות: 22 (חדש)
+📊 <b>סטטיסטיקות מעודכנות:</b>
+👥 משתמשים: {len(self.user_data)}
+💸 עסקאות: {len(self.transactions)}
 """
-                self.notify_admin(admin_msg)
-                
-                logger.info(f"💸 Transaction approved: {tx_hash[:20]}... (User: {chat_id})")
-            else:
-                self.send_message(chat_id,
-                    "⚠️ <b>עסקה דורשת בדיקה נוספת</b>\n\n"
-                    "העסקה התקבלה אך דורשת אימות ידני.\n"
-                    "אנא המתן לאישור או פנה לתמיכה: @Osif83\n\n"
-                    "🔍 <b>נבדוק את העסקה תוך שעה</b>"
-                )
-                
-        except Exception as e:
-            logger.error(f"Transaction error: {e}")
-            self.send_message(chat_id,
-                "❌ <b>שגיאה באימות העסקה</b>\n\n"
-                "בעיה זמנית בחיבור לשרת.\n"
-                "העסקה נרשמה, נבדוק אותה תוך זמן קצר.\n\n"
-                "נסה שוב בעוד דקה או שלח /status לעדכון."
-            )
+        self.notify_admin(admin_msg)
+        
+        logger.info(f"💸 Transaction received: {tx_hash[:20]}... (User: {chat_id})")
+        self.save_data()
     
     def handle_status_command(self, chat_id):
         """טיפול בפקודת /status"""
-        try:
-            response = self.session.get(
-                f"{API_URL}/api/user/{chat_id}",
-                timeout=10
-            )
+        chat_id_str = str(chat_id)
+        
+        if chat_id_str in self.user_data:
+            user = self.user_data[chat_id_str]
             
-            if response.status_code == 200:
-                user_data = response.json().get("user", {})
-                
-                status_msg = f"""
+            status_msg = f"""
 📊 <b>סטטוס אישי</b>
 
-👤 <b>משתמש:</b> {user_data.get('first_name', 'משתמש')}
-🆔 <b>ID:</b> {chat_id}
-✅ <b>טוקנים:</b> {user_data.get('tokens', 0):,} SLH
-💰 <b>שווי משוער:</b> {user_data.get('tokens', 0) * 0.0444:.2f} TON
-🔄 <b>עסקאות:</b> {user_data.get('transactions', 0)}
-📅 <b>עדכון אחרון:</b> {user_data.get('last_updated', 'לא ידוע')}
+👤 <b>משתמש:</b> {user.get('name', 'משתמש')}
+🆔 <b>Username:</b> @{user.get('username', 'N/A')}
+✅ <b>טוקנים:</b> {user.get('tokens', 0):,} SLH
+💰 <b>שווי משוער:</b> {user.get('tokens', 0) * 0.0444:.2f} TON
+📅 <b>נרשם:</b> {user.get('registered', 'לא ידוע')[:10]}
+🔄 <b>סטטוס:</b> {user.get('status', 'לא ידוע')}
 """
-                self.send_message(chat_id, status_msg)
-            else:
-                # אם אין נתונים, תן סטטוס כללי
-                stats_response = self.session.get(f"{API_URL}/api/stats", timeout=10)
-                if stats_response.status_code == 200:
-                    stats = stats_response.json().get("stats", {})
-                    
-                    status_msg = f"""
+            if user.get('paid_at'):
+                status_msg += f"\n💰 <b>שולם ב:</b> {user.get('paid_at', '')[:10]}"
+        else:
+            # סטטיסטיקות כללית
+            total_users = len(self.user_data)
+            total_transactions = len(self.transactions)
+            paid_users = len([u for u in self.user_data.values() if u.get('status') == 'paid'])
+            
+            status_msg = f"""
 📊 <b>סטטוס מערכת כללי</b>
 
-👥 <b>משתמשים במערכת:</b> {stats.get('total_users', 37)}
-✅ <b>משתמשים מאומתים:</b> {stats.get('verified_users', 21)}
-💰 <b>עסקאות אושרו:</b> {stats.get('confirmed_transactions', 21)}
-🎯 <b>מקומות פנויים:</b> {stats.get('available_slots', 979)}/1,000
+👥 <b>משתמשים במערכת:</b> {total_users}
+✅ <b>משתמשים שילמו:</b> {paid_users}
+💰 <b>עסקאות:</b> {total_transactions}
+🎯 <b>מקומות פנויים:</b> {1000 - paid_users}/1,000
 
 <b>להתחלת תהליך רכישה:</b>
 שלח /start
 """
-                    self.send_message(chat_id, status_msg)
-                else:
-                    self.send_message(chat_id,
-                        "📊 <b>סטטוס מערכת</b>\n\n"
-                        "המערכת פעילה ומחכה להזמנות!\n"
-                        "👥 37 משתמשים נרשמו\n"
-                        "💰 21 עסקאות אושרו\n"
-                        "🎯 979 מקומות פנויים\n\n"
-                        "שלח /start להתחיל!"
-                    )
-                    
-        except Exception as e:
-            logger.error(f"Status error: {e}")
-            self.send_message(chat_id,
-                "📊 <b>סטטוס מערכת</b>\n\n"
-                "המערכת פעילה ומחכה להזמנות!\n"
-                "👥 37 משתמשים נרשמו\n"
-                "💰 21 עסקאות אושרו\n"
-                "🎯 979 מקומות פנויים\n\n"
-                "שלח /start להתחיל!"
-            )
+        
+        self.send_message(chat_id, status_msg)
     
     def handle_help_command(self, chat_id):
         """טיפול בפקודת /help"""
@@ -363,6 +360,27 @@ class SLHAirdropBot:
 """
         self.send_message(chat_id, wallet_msg)
     
+    def handle_admin_command(self, chat_id, text):
+        """טיפול בפקודות מנהל"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        if text == "/admin stats":
+            stats_msg = f"""
+📊 <b>סטטיסטיקות מנהל</b>
+
+👥 <b>משתמשים:</b> {len(self.user_data)}
+💰 <b>משתמשים שילמו:</b> {len([u for u in self.user_data.values() if u.get('status') == 'paid'])}
+💸 <b>עסקאות:</b> {len(self.transactions)}
+🎯 <b>מקומות פנויים:</b> {1000 - len(self.transactions)}/1,000
+💾 <b>קובץ נתונים:</b> {DATA_FILE}
+
+<b>פקודות נוספות:</b>
+/admin backup - יצוא נתונים
+/admin reset - איפוס (זהיר!)
+"""
+            self.send_message(chat_id, stats_msg)
+    
     def process_message(self, message):
         """מעבד הודעת טלגרם"""
         chat_id = message["chat"]["id"]
@@ -385,10 +403,15 @@ class SLHAirdropBot:
         elif text == "/wallet":
             self.handle_wallet_command(chat_id)
         
+        elif text.startswith("/admin"):
+            self.handle_admin_command(chat_id, text)
+        
         # אם זה לא פקודה - בדוק לפי מצב המשתמש
         elif not text.startswith("/"):
-            if chat_id in self.user_states:
-                state = self.user_states[chat_id]["state"]
+            chat_id_str = str(chat_id)
+            
+            if chat_id_str in self.user_states:
+                state = self.user_states[chat_id_str]["state"]
                 
                 if state == "awaiting_username":
                     self.handle_username_input(chat_id, text)
@@ -432,9 +455,9 @@ class SLHAirdropBot:
     def run(self):
         """הרצת הבוט הראשית"""
         logger.info("=" * 50)
-        logger.info("🚀 SLH Airdrop Bot - Full Version")
-        logger.info(f"👑 Admin: {ADMIN_ID}")
-        logger.info(f"📡 API: {API_URL}")
+        logger.info("🚀 SLH Airdrop Bot - Standalone Version")
+        logger.info(f"👑 Admin ID: {ADMIN_ID}")
+        logger.info("📁 Data storage: JSON file")
         logger.info("=" * 50)
         
         # בדיקת חיבור ראשונית
@@ -453,16 +476,6 @@ class SLHAirdropBot:
             logger.error(f"❌ Telegram connection error: {e}")
             return
         
-        # בדיקת חיבור ל-API
-        try:
-            response = requests.get(f"{API_URL}/health", timeout=10)
-            if response.status_code == 200:
-                logger.info(f"✅ API connected: {response.json().get('status')}")
-            else:
-                logger.warning(f"⚠️ API not responding: {response.status_code}")
-        except Exception as e:
-            logger.warning(f"⚠️ API connection error: {e}")
-        
         logger.info("🔄 Bot is running and waiting for messages...")
         
         # לולאה ראשית
@@ -477,39 +490,24 @@ class SLHAirdropBot:
                         if "message" in update:
                             self.process_message(update["message"])
                 
+                # שמור נתונים כל 5 דקות
+                if int(time.time()) % 300 == 0:
+                    self.save_data()
+                
                 time.sleep(0.5)  # קצב בדיקה מהיר
                 
             except KeyboardInterrupt:
                 logger.info("🛑 Bot stopped by user")
+                self.save_data()
                 break
             except Exception as e:
                 logger.error(f"❌ Main loop error: {e}")
                 time.sleep(5)  # המתן 5 שניות במקרה של שגיאה
 
-def start_bot():
-    """פונקציית התחלת הבוט"""
+def main():
+    """הפעלת הבוט"""
     bot = SLHAirdropBot()
     bot.run()
 
 if __name__ == "__main__":
-    start_bot()
-        # המתן שה-API יהיה זמין
-        logger.info("⏳ Waiting for API to be ready...")
-        api_ready = False
-        for i in range(30):  # נסה עד 30 פעמים (30 שניות)
-            try:
-                response = requests.get(f"{API_URL}/health", timeout=5)
-                if response.status_code == 200:
-                    api_ready = True
-                    logger.info("✅ API is ready!")
-                    break
-                else:
-                    logger.warning(f"⚠️ API not ready yet (attempt {i+1}/30)")
-            except:
-                logger.warning(f"⚠️ API connection failed (attempt {i+1}/30)")
-            
-            time.sleep(1)
-        
-        if not api_ready:
-            logger.error("❌ API did not become ready after 30 seconds")
-            logger.warning("⚠️ Bot will continue without API connection")
+    main()

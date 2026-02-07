@@ -1,8 +1,20 @@
-﻿[build]
+﻿# railway.toml - הגדרות עבור שני שירותים נפרדים
+
+[build]
 builder = "nixpacks"
 
-[deploy]
-startCommand = "python entrypoint.py"
-
+# הגדרות עבור שירות API
 [[services]]
+name = "web"
 port = 8000
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --workers 1"
+
+# הגדרות עבור שירות הבוט
+[[services]]
+name = "bot"
+startCommand = "python entrypoint_bot.py"
+
+# משתנים משותפים
+[environments.production.variables]
+TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
+ADMIN_KEY = "airdrop_admin_2026"
