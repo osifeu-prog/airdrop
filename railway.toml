@@ -1,15 +1,13 @@
-﻿# railway.toml - תיקון סופי
-
-[build]
+﻿[build]
 builder = "nixpacks"
 
-# שירות API בלבד
+# שירות API - רץ על פורט 8000
 [[services]]
 name = "web"
 port = 8000
-startCommand = "python app/api_server.py"
+startCommand = "uvicorn app.api_server:app --host 0.0.0.0 --port 8000"
 
-# שירות בוט בלבד  
+# שירות בוט - ללא פורט
 [[services]]
 name = "bot"
 startCommand = "python app/bot_server.py"

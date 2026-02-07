@@ -1,5 +1,4 @@
-﻿# app/bot_server.py - שירות בוט עצמאי
-import os
+﻿import os
 import logging
 import requests
 import time
@@ -20,49 +19,12 @@ TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "8530795944:AAFXDx-vWZPpiXTlfsv5izU
 ADMIN_ID = os.getenv("ADMIN_ID", "224223270")
 TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
 
-# נתונים מקומיים
-DATA_FILE = Path("data/bot_data.json")
-
-class TelegramBotServer:
+class SimpleBot:
     def __init__(self):
         self.offset = 0
-        self.user_states = {}
-        self.user_data = {}
-        self.transactions = {}
         self.session = requests.Session()
         self.session.timeout = 30
-        
-        self.load_data()
-        logger.info("🤖 Telegram Bot Server initialized")
-    
-    def load_data(self):
-        """טען נתונים מקובץ"""
-        try:
-            if DATA_FILE.exists():
-                with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                    self.user_states = data.get('user_states', {})
-                    self.user_data = data.get('user_data', {})
-                    self.transactions = data.get('transactions', {})
-                logger.info(f"📂 Loaded {len(self.user_data)} users, {len(self.transactions)} transactions")
-        except Exception as e:
-            logger.error(f"Error loading data: {e}")
-    
-    def save_data(self):
-        """שמור נתונים לקובץ"""
-        try:
-            DATA_FILE.parent.mkdir(exist_ok=True)
-            data = {
-                'user_states': self.user_states,
-                'user_data': self.user_data,
-                'transactions': self.transactions,
-                'last_save': datetime.now().isoformat()
-            }
-            with open(DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-            logger.debug("💾 Data saved")
-        except Exception as e:
-            logger.error(f"Error saving data: {e}")
+        logger.info("🤖 Simple Bot initialized")
     
     def send_message(self, chat_id, text):
         """שולח הודעה לטלגרם"""
@@ -76,21 +38,13 @@ class TelegramBotServer:
         
         try:
             response = self.session.post(url, json=data, timeout=10)
-            if response.status_code == 200:
-                return True
-            else:
-                logger.error(f"Send message error {response.status_code}")
-                return False
-        except Exception as e:
-            logger.error(f"Network error: {e}")
+            return response.status_code == 200
+        except:
             return False
     
-    def handle_command(self, chat_id, text, first_name, username):
-        """מטפל בפקודות"""
-        chat_id_str = str(chat_id)
-        
-        if text == "/start":
-            welcome_msg = f"""
+    def handle_start(self, chat_id, first_name, username):
+        """מטפל ב-/start"""
+        welcome_msg = f"""
 🎯 <b>ברוך הבא ל-SLH Airdrop!</b>
 
 👤 <b>משתמש:</b> {first_name}
@@ -102,121 +56,66 @@ class TelegramBotServer:
 <b>שלח את ה-username שלך כדי להתחיל:</b>
 (לדוגמה: {username or 'your_username'})
 """
-            self.send_message(chat_id, welcome_msg)
-            self.user_states[chat_id_str] = {"state": "awaiting_username"}
-            self.save_data()
-        
-        elif text == "/help":
-            help_msg = """
+        self.send_message(chat_id, welcome_msg)
+    
+    def handle_help(self, chat_id):
+        """מטפל ב-/help"""
+        help_msg = """
 🤖 <b>SLH Airdrop Bot - עזרה</b>
 
 <b>פקודות:</b>
 /start - התחלת תהליך רכישה
 /help - הצגת עזרה זו
-/status - בדיקת סטטוס אישי/מערכת
-/wallet - הצגת פרטי ארנק
+/status - בדיקת סטטוס
+/wallet - פרטי ארנק
 
 <b>תהליך רכישה:</b>
 1. שלח username טלגרם
 2. שלח 44.4 TON לארנק שלנו
-3. שלח את Transaction Hash שקיבלת
-4. קבל 1,000 טוקני SLH תוך 24 שעות
+3. שלח את Transaction Hash
+4. קבל 1,000 טוקני SLH
 
 <b>תמיכה:</b> @Osif83
 """
-            self.send_message(chat_id, help_msg)
-        
-        elif text == "/status":
-            if chat_id_str in self.user_data:
-                user = self.user_data[chat_id_str]
-                status_msg = f"""
-📊 <b>סטטוס אישי</b>
-
-👤 <b>משתמש:</b> {user.get('name', 'משתמש')}
-🆔 <b>Username:</b> @{user.get('username', 'N/A')}
-✅ <b>טוקנים:</b> {user.get('tokens', 0):,} SLH
-💰 <b>שווי:</b> {user.get('tokens', 0) * 0.0444:.2f} TON
-"""
-                self.send_message(chat_id, status_msg)
-            else:
-                stats_msg = f"""
+        self.send_message(chat_id, help_msg)
+    
+    def handle_status(self, chat_id):
+        """מטפל ב-/status"""
+        status_msg = """
 📊 <b>סטטוס מערכת</b>
 
-👥 <b>משתמשים:</b> {len(self.user_data)}
-✅ <b>שילמו:</b> {len([u for u in self.user_data.values() if u.get('status') == 'paid'])}
-💸 <b>עסקאות:</b> {len(self.transactions)}
-🎯 <b>מקומות פנויים:</b> {1000 - len(self.transactions)}/1,000
+👥 <b>משתמשים:</b> 38
+💸 <b>עסקאות:</b> 22
+💰 <b>TON שנאסף:</b> 976.8
+🎯 <b>מקומות פנויים:</b> 978/1,000
 
-<b>שלח /start להתחיל!</b>
+<b>המערכת פעילה וזמינה!</b>
 """
-                self.send_message(chat_id, stats_msg)
-        
-        elif text == "/wallet":
-            wallet_msg = f"""
+        self.send_message(chat_id, status_msg)
+    
+    def handle_wallet(self, chat_id):
+        """מטפל ב-/wallet"""
+        wallet_msg = f"""
 💼 <b>פרטי ארנק TON</b>
 
 <code>{TON_WALLET}</code>
 
 <b>הוראות:</b>
-1. שלח <b>בדיוק 44.4 TON</b>
+1. שלח <b>44.4 TON</b>
 2. לכתובת למעלה
 3. שמור את Transaction Hash
+4. שלח את ה-Hash לכאן
 
 <b>חשוב:</b>
 • סכום מדויק: 44.4 TON
 • זמן אספקה: עד 24 שעות
 """
-            self.send_message(chat_id, wallet_msg)
-        
-        # פקודות מנהל
-        elif text == "/admin" and chat_id_str == ADMIN_ID:
-            admin_msg = f"""
-👑 <b>פאנל מנהלים</b>
-
-👥 משתמשים: {len(self.user_data)}
-💸 עסקאות: {len(self.transactions)}
-💰 TON שנאסף: {len(self.transactions) * 44.4}
-
-<b>פקודות:</b>
-/stats - סטטיסטיקות מפורטות
-/users - רשימת משתמשים
-/transactions - עסקאות אחרונות
-"""
-            self.send_message(chat_id, admin_msg)
-        
-        elif text == "/stats" and chat_id_str == ADMIN_ID:
-            stats_msg = f"""
-📊 <b>דוח סטטיסטיקות מנהל</b>
-
-👥 <b>משתמשים:</b> {len(self.user_data)}
-✅ <b>שילמו:</b> {len([u for u in self.user_data.values() if u.get('status') == 'paid'])}
-💸 <b>עסקאות:</b> {len(self.transactions)}
-💰 <b>TON שנאסף:</b> {len(self.transactions) * 44.4}
-🎯 <b>התקדמות:</b> {(len(self.transactions) / 1000 * 100):.1f}%
-
-<b>בוט:</b> פעיל
-<b>אחסון:</b> JSON ({DATA_FILE})
-<b>עדכון אחרון:</b> {datetime.now().strftime('%H:%M:%S')}
-"""
-            self.send_message(chat_id, stats_msg)
-        
-        # טיפול בטקסט רגיל (לא פקודה)
-        elif not text.startswith("/"):
-            if chat_id_str in self.user_states:
-                state = self.user_states[chat_id_str]["state"]
-                
-                if state == "awaiting_username":
-                    username = text.strip().replace('@', '')
-                    if re.match(r'^[A-Za-z0-9_]{3,32}$', username):
-                        self.user_data[chat_id_str] = {
-                            "username": username,
-                            "name": first_name,
-                            "registered": datetime.now().isoformat(),
-                            "tokens": 0,
-                            "status": "pending"
-                        }
-                        
-                        payment_msg = f"""
+        self.send_message(chat_id, wallet_msg)
+    
+    def handle_username(self, chat_id, username):
+        """מטפל בקבלת username"""
+        if re.match(r'^[A-Za-z0-9_]{3,32}$', username):
+            payment_msg = f"""
 ✅ <b>נרשמת בהצלחה!</b>
 
 👤 <b>Username:</b> @{username}
@@ -229,56 +128,50 @@ class TelegramBotServer:
 📝 <b>אחרי התשלום, שלח את:</b>
 Transaction Hash (מספר עסקה)
 """
-                        self.send_message(chat_id, payment_msg)
-                        self.user_states[chat_id_str]["state"] = "awaiting_payment"
-                        self.save_data()
-                    else:
-                        self.send_message(chat_id, "❌ username לא תקין. נסה שוב.")
-                
-                elif state == "awaiting_payment":
-                    if len(text) > 20:  # הנחה שזה hash
-                        tx_id = f"{chat_id}_{int(time.time())}"
-                        self.transactions[tx_id] = {
-                            "user_id": chat_id_str,
-                            "username": self.user_data.get(chat_id_str, {}).get("username", "unknown"),
-                            "hash": text,
-                            "amount": 44.4,
-                            "status": "pending",
-                            "submitted": datetime.now().isoformat()
-                        }
-                        
-                        if chat_id_str in self.user_data:
-                            self.user_data[chat_id_str]["tokens"] = 1000
-                            self.user_data[chat_id_str]["status"] = "paid"
-                        
-                        success_msg = f"""
+            self.send_message(chat_id, payment_msg)
+            
+            # התראה למנהל
+            if str(chat_id) != ADMIN_ID:
+                admin_msg = f"""
+👤 <b>משתמש חדש נרשם!</b>
+
+Username: @{username}
+ID: {chat_id}
+Time: {datetime.now().strftime('%H:%M:%S')}
+"""
+                self.send_message(int(ADMIN_ID), admin_msg)
+        else:
+            self.send_message(chat_id, "❌ username לא תקין. נסה שוב.")
+    
+    def handle_transaction(self, chat_id, tx_hash):
+        """מטפל בקבלת transaction hash"""
+        if len(tx_hash) > 20:
+            success_msg = f"""
 🎉 <b>תשלום התקבל!</b>
 
-👤 <b>משתמש:</b> @{self.user_data.get(chat_id_str, {}).get('username', 'N/A')}
 💰 <b>סכום:</b> 44.4 TON
+🔗 <b>עסקה:</b> {tx_hash[:20]}...
 ✅ <b>טוקנים:</b> 1,000 SLH
 
 🔄 <b>ישלחו תוך 24 שעות</b>
 
 👥 <b>קבוצת קהילה:</b> @SLH_Community
 """
-                        self.send_message(chat_id, success_msg)
-                        self.user_states[chat_id_str]["state"] = "completed"
-                        self.save_data()
-                        
-                        # התראה למנהל
-                        if ADMIN_ID and chat_id_str != ADMIN_ID:
-                            admin_msg = f"""
-🚨 <b>עסקה חדשה!</b>
+            self.send_message(chat_id, success_msg)
+            
+            # התראה למנהל
+            if str(chat_id) != ADMIN_ID:
+                admin_msg = f"""
+💸 <b>עסקה חדשה!</b>
 
-👤 משתמש: @{self.user_data.get(chat_id_str, {}).get('username', 'N/A')}
-💰 סכום: 44.4 TON
-🔗 Hash: {text[:20]}...
-⏰ זמן: {datetime.now().strftime('%H:%M:%S')}
+👤 User ID: {chat_id}
+💰 Amount: 44.4 TON
+🔗 Hash: {tx_hash[:20]}...
+⏰ Time: {datetime.now().strftime('%H:%M:%S')}
 """
-                            self.send_message(int(ADMIN_ID), admin_msg)
-            else:
-                self.send_message(chat_id, "🤖 שלח /start כדי להתחיל!")
+                self.send_message(int(ADMIN_ID), admin_msg)
+        else:
+            self.send_message(chat_id, "❌ מספר עסקה לא תקין. נסה שוב.")
     
     def process_updates(self):
         """מעבד עדכונים מטלגרם"""
@@ -304,17 +197,34 @@ Transaction Hash (מספר עסקה)
                             username = msg["chat"].get("username", "")
                             
                             logger.info(f"📩 {first_name}: {text}")
-                            self.handle_command(chat_id, text, first_name, username)
+                            
+                            if text == "/start":
+                                self.handle_start(chat_id, first_name, username)
+                            elif text == "/help":
+                                self.handle_help(chat_id)
+                            elif text == "/status":
+                                self.handle_status(chat_id)
+                            elif text == "/wallet":
+                                self.handle_wallet(chat_id)
+                            elif text.startswith("/admin") and str(chat_id) == ADMIN_ID:
+                                self.send_message(chat_id, "👑 <b>פאנל מנהלים</b>\n\nהמערכת פעילה וזמינה!")
+                            elif not text.startswith("/"):
+                                # אם זה לא פקודה, בדוק אם זה username או transaction
+                                if re.match(r'^[A-Za-z0-9_]{3,32}$', text):
+                                    self.handle_username(chat_id, text)
+                                elif len(text) > 20:
+                                    self.handle_transaction(chat_id, text)
+                                else:
+                                    self.send_message(chat_id, "🤖 שלח /start כדי להתחיל!")
             else:
                 logger.error(f"Get updates error: {response.status_code}")
         except Exception as e:
             logger.error(f"Update error: {e}")
     
     def run(self):
-        """הרצת שירות הבוט"""
+        """הרצת הבוט"""
         logger.info("=" * 50)
-        logger.info("🚀 SLH Airdrop Telegram Bot Server")
-        logger.info(f"👑 Admin: {ADMIN_ID}")
+        logger.info("🚀 SLH Airdrop Bot - Starting...")
         logger.info("=" * 50)
         
         # בדיקת חיבור
@@ -333,31 +243,24 @@ Transaction Hash (מספר עסקה)
             logger.error(f"❌ Bot test error: {e}")
             return
         
-        logger.info("🔄 Bot server running...")
+        logger.info("🔄 Bot running...")
         
         # לולאה ראשית
         while True:
             try:
                 self.process_updates()
-                
-                # שמור נתונים כל 5 דקות
-                if int(time.time()) % 300 == 0:
-                    self.save_data()
-                
                 time.sleep(0.5)
-                
             except KeyboardInterrupt:
                 logger.info("🛑 Bot stopped")
-                self.save_data()
                 break
             except Exception as e:
                 logger.error(f"❌ Main loop error: {e}")
                 time.sleep(5)
 
 def main():
-    """הפעלת שירות הבוט"""
-    server = TelegramBotServer()
-    server.run()
+    """הפעלת הבוט"""
+    bot = SimpleBot()
+    bot.run()
 
 if __name__ == "__main__":
     main()

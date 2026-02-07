@@ -2,14 +2,18 @@
 
 WORKDIR /app
 
-# התקן תלויות
+# התקן תלויות מערכת
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# העתק קבצים
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# העתק קבצים
 COPY . .
 
 # צור תיקיות
 RUN mkdir -p data templates
 
-CMD ["echo", "Use Railway start commands"]
+CMD ["python", "--version"]
