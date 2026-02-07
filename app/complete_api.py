@@ -396,3 +396,4 @@ async def health_check():
         "database": "connected",
         "version": "2.0"
     }
+

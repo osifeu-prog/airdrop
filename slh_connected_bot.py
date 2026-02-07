@@ -12,7 +12,7 @@ from datetime import datetime
 # CONFIGURATION
 # ====================
 TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
-API_URL = "https://successful-fulfillment-production.up.railway.app"
+API_URL = "http://localhost:8001"
 ADMIN_ID = "7757102350"  # החלף עם ה-ID שלך
 
 # ====================
@@ -31,7 +31,23 @@ logger = logging.getLogger(__name__)
 # ====================
 # API FUNCTIONS
 # ====================
+def check_api_connection():
+    """בודק חיבור ל-API"""
+    try:
+        response = requests.get(f"{API_URL}/health", timeout=5)
+        return response.status_code == 200
+    except:
+        return False
+
 def call_api(endpoint, method="GET", data=None):
+    """קורא ל-API"""
+    if not check_api_connection():
+        logger.error("API לא זמין, מנסה כתובת חלופית...")
+        # נסה כתובת אחרת
+        alt_url = "https://successful-fulfillment-production.up.railway.app"
+        url = f"{alt_url}{endpoint}"
+    else:
+        url = f"{API_URL}{endpoint}"
     """קורא ל-API"""
     url = f"{API_URL}{endpoint}"
     
@@ -340,3 +356,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
