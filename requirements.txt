@@ -4,11 +4,8 @@ requests==2.31.0
 python-telegram-bot==20.6
 python-multipart==0.0.6
 aiofiles==23.2.1
-psycopg2-binary==2.9.9
-redis==5.0.1
-aioredis==2.0.1
 sqlalchemy==2.0.23
-alembic==1.13.1
-pydantic==2.5.3
-python-jose[cryptography]==3.3.0
+alembic==1.13.0
+redis==5.0.1
 python-dotenv==1.0.0
+sqlite3
