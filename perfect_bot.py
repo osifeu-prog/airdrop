@@ -14,7 +14,7 @@ from datetime import datetime
 # CONFIGURATION - יש לעדכן!
 # ====================
 TOKEN = "8530795944:AAFXDx-vWZPpiXTlfsv5izUayJ4OpLLq3Ls"
-API_URL = "http://localhost:8000"  # לשנות ל-URL של Railway אחרי העלאה
+API_URL = "https://successful-fulfillment-production.up.railway.app"  # לשנות ל-URL של Railway אחרי העלאה
 ADMIN_ID = "7757102350"
 TON_WALLET = "UQCr743gEr_nqV_0SBkSp3CtYS_15R3LDLBvLmKeEv7XdGvp"
 
@@ -377,3 +377,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
