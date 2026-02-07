@@ -511,3 +511,187 @@ def main():
 
 if __name__ == "__main__":
     main()
+    def handle_admin_panel(self, chat_id):
+        """פאנל מנהלים עם כפתורים"""
+        if str(chat_id) != ADMIN_ID:
+            self.send_message(chat_id, "⛔ גישה נדחתה. מנהל בלבד.")
+            return
+        
+        admin_msg = """
+👑 <b>פאנל מנהלים - SLH Airdrop</b>
+
+<b>פקודות מנהל:</b>
+📊 /stats - סטטיסטיקות מערכת
+👥 /users - רשימת משתמשים
+💸 /transactions - עסקאות אחרונות
+🚀 /broadcast - שליחת הודעה לכולם
+📁 /export - יצוא נתונים
+⚙️ /settings - הגדרות מערכת
+
+<b>דוחות:</b>
+📈 /report_daily - דוח יומי
+📋 /report_full - דוח מלא
+🔄 /status_detailed - סטטוס מפורט
+"""
+        
+        # אפשר להוסיף inline keyboard כאן
+        self.send_message(chat_id, admin_msg)
+    
+    def handle_admin_stats(self, chat_id):
+        """סטטיסטיקות מתקדמות למנהל"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        total_users = len(self.user_data)
+        paid_users = len([u for u in self.user_data.values() if u.get('status') == 'paid'])
+        total_transactions = len(self.transactions)
+        total_ton = total_transactions * 44.4
+        
+        stats_msg = f"""
+📊 <b>דוח סטטיסטיקות מנהל</b>
+
+<b>משתמשים:</b>
+👥 נרשמו: {total_users}
+✅ שילמו: {paid_users}
+⏳ ממתינים: {total_users - paid_users}
+
+<b>כספים:</b>
+💰 עסקאות: {total_transactions}
+💎 TON שנאסף: {total_ton}
+🎯 יעד: 44,400 TON (1,000 משתמשים)
+
+<b>קצב גידול:</b>
+📈 השלמה: {(paid_users / 1000 * 100):.1f}%
+⏰ זמן משוער לסיום: {int((1000 - paid_users) / max(paid_users, 1) * 7)} ימים
+
+<b>נתונים טכניים:</b>
+💾 גודל נתונים: {len(str(self.user_data)) + len(str(self.transactions)):,} תווים
+🔄 אחרון נשמר: {datetime.now().strftime('%H:%M:%S')}
+"""
+        
+        self.send_message(chat_id, stats_msg)
+    
+    def handle_admin_users(self, chat_id):
+        """רשימת משתמשים למנהל"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        if not self.user_data:
+            self.send_message(chat_id, "📭 אין משתמשים רשומים עדיין.")
+            return
+        
+        users_list = "👥 <b>רשימת משתמשים:</b>\n\n"
+        
+        for i, (user_id, user) in enumerate(list(self.user_data.items())[:20]):  # הגבל ל-20 ראשונים
+            status_emoji = "✅" if user.get('status') == 'paid' else "⏳"
+            users_list += f"{i+1}. {status_emoji} @{user.get('username', 'N/A')} (ID: {user_id})\n"
+        
+        if len(self.user_data) > 20:
+            users_list += f"\n📋 +{len(self.user_data) - 20} משתמשים נוספים..."
+        
+        self.send_message(chat_id, users_list)
+    
+    def handle_admin_transactions(self, chat_id):
+        """רשימת עסקאות אחרונות"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        if not self.transactions:
+            self.send_message(chat_id, "💸 אין עסקאות עדיין.")
+            return
+        
+        transactions_list = "💸 <b>עסקאות אחרונות:</b>\n\n"
+        
+        # מיין לפי זמן (החדשים ביותר ראשונים)
+        sorted_txs = sorted(
+            self.transactions.items(),
+            key=lambda x: x[1].get('submitted', ''),
+            reverse=True
+        )[:10]  # 10 עסקאות אחרונות
+        
+        for i, (tx_id, tx) in enumerate(sorted_txs):
+            time_str = tx.get('submitted', '')[:16].replace('T', ' ')
+            transactions_list += f"{i+1}. {tx.get('hash', '')[:15]}...\n"
+            transactions_list += f"   👤 @{tx.get('username', 'N/A')}\n"
+            transactions_list += f"   ⏰ {time_str}\n\n"
+        
+        self.send_message(chat_id, transactions_list)
+    
+    def handle_admin_broadcast(self, chat_id, text):
+        """שליחת הודעה לכל המשתמשים"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        # הסר את הפקודה מהטקסט
+        message = text.replace('/broadcast', '').strip()
+        
+        if not message:
+            self.send_message(chat_id, 
+                "📢 <b>שליחת broadcast:</b>\n\n"
+                "שלח: /broadcast [ההודעה שלך]\n\n"
+                "דוגמה: /broadcast שלום לכולם! הטוקנים ישלחו בעוד שעה."
+            )
+            return
+        
+        # תן אישור התחלה
+        self.send_message(chat_id, f"📢 שולח הודעה ל-{len(self.user_data)} משתמשים...")
+        
+        # שלח לכל משתמש
+        success_count = 0
+        for user_id in self.user_data.keys():
+            try:
+                broadcast_msg = f"📢 <b>הודעה מהנהלת SLH:</b>\n\n{message}"
+                if self.send_message(int(user_id), broadcast_msg):
+                    success_count += 1
+            except:
+                pass
+        
+        self.send_message(chat_id, f"✅ נשלחו {success_count}/{len(self.user_data)} הודעות.")
+    
+    def handle_admin_export(self, chat_id):
+        """יצוא נתונים למנהל"""
+        if str(chat_id) != ADMIN_ID:
+            return
+        
+        import json
+        
+        export_data = {
+            "exported_at": datetime.now().isoformat(),
+            "total_users": len(self.user_data),
+            "total_transactions": len(self.transactions),
+            "users": self.user_data,
+            "transactions": self.transactions,
+            "user_states": self.user_states
+        }
+        
+        # שמור לקובץ זמני
+        import tempfile
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            json.dump(export_data, f, ensure_ascii=False, indent=2)
+            temp_file = f.name
+        
+        # במידה ונרצה לשלוח כקובץ (בעתיד)
+        self.send_message(chat_id,
+            f"📁 <b>יצוא נתונים הושלם:</b>\n\n"
+            f"👥 משתמשים: {len(self.user_data)}\n"
+            f"💸 עסקאות: {len(self.transactions)}\n"
+            f"💾 גודל: {len(json.dumps(export_data)):,} תווים\n\n"
+            f"הנתונים נשמרו בשרת."
+        )
+        elif text == "/admin":
+            self.handle_admin_panel(chat_id)
+        
+        elif text == "/stats":
+            self.handle_admin_stats(chat_id)
+        
+        elif text == "/users":
+            self.handle_admin_users(chat_id)
+        
+        elif text == "/transactions":
+            self.handle_admin_transactions(chat_id)
+        
+        elif text.startswith("/broadcast"):
+            self.handle_admin_broadcast(chat_id, text)
+        
+        elif text == "/export":
+            self.handle_admin_export(chat_id)

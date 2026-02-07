@@ -117,3 +117,20 @@ async def admin_dashboard(admin_key: str = None):
     return HTMLResponse(content=html_content)
 
 # אין צורך ב-if __name__ == "__main__" - Railway יריץ עם uvicorn
+from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
+
+# הגדר templates
+templates = Jinja2Templates(directory="templates")
+
+# הוסף route לדאשבורד המתקדם
+@app.get("/admin/advanced")
+async def advanced_dashboard(admin_key: str = None):
+    """דאשבורד מתקדם למנהלים"""
+    if admin_key != "airdrop_admin_2026":
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    
+    return templates.TemplateResponse(
+        "admin_dashboard.html",
+        {"request": {}, "timestamp": datetime.now().isoformat()}
+    )
